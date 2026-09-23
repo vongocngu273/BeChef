@@ -457,4 +457,342 @@ describe('Backend API: POST /api/generate-recipes', () => {
       }
     });
   });
+
+  describe('meal_type handling in POST /api/generate-recipes', () => {
+    test('should pass meal_type to geminiService.generateBabyRecipes when specified', async () => {
+      const spy = jest.spyOn(geminiService, 'generateBabyRecipes').mockResolvedValueOnce({
+        safety_analysis: { overall_verdict: 'OK', ingredient_evaluations: [] },
+        recipes: []
+      });
+
+      const res = await request(app)
+        .post('/api/generate-recipes')
+        .send({
+          age_months: 8,
+          feeding_method: 'Truyền thống',
+          meal_type: 'Bữa phụ',
+          available_ingredients: ['Bơ', 'Chuối']
+        });
+
+      expect(res.status).toBe(200);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          age_months: 8,
+          feeding_method: 'Truyền thống',
+          meal_type: 'Bữa phụ',
+          available_ingredients: ['Bơ', 'Chuối']
+        })
+      );
+    });
+
+    test('should default meal_type to "Bữa chính" when meal_type is omitted', async () => {
+      const spy = jest.spyOn(geminiService, 'generateBabyRecipes').mockResolvedValueOnce({
+        safety_analysis: { overall_verdict: 'OK', ingredient_evaluations: [] },
+        recipes: []
+      });
+
+      const res = await request(app)
+        .post('/api/generate-recipes')
+        .send({
+          age_months: 8,
+          feeding_method: 'Truyền thống',
+          available_ingredients: ['Bí đỏ']
+        });
+
+      expect(res.status).toBe(200);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal_type: 'Bữa chính'
+        })
+      );
+    });
+
+    test('should reject invalid meal_type (400)', async () => {
+      const res = await request(app)
+        .post('/api/generate-recipes')
+        .send({
+          age_months: 8,
+          feeding_method: 'Truyền thống',
+          meal_type: 'Ăn khuya'
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/meal_type/i);
+    });
+
+    test('generateFallbackRecipes should return 3 safe snack recipes for "Bữa phụ"', () => {
+      const result = geminiService.generateFallbackRecipes(7, 'Truyền thống', 'Bữa phụ', ['Bơ', 'Yến mạch'], []);
+      expect(result.recipes).toHaveLength(3);
+      expect(result.recipes[0].dish_name).toMatch(/Pudding|Sinh tố|Custard/i);
+      expect(() => geminiService.validatePediatricSafety(result.recipes, 7)).not.toThrow();
+    });
+  });
+
+  describe('Backend API: POST /api/regenerate-single-recipe', () => {
+    let originalKey;
+
+    beforeAll(() => {
+      originalKey = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = 'mock_key';
+    });
+
+    afterAll(() => {
+      process.env.GEMINI_API_KEY = originalKey;
+    });
+
+    describe('Payload Boundary & Validation Rules', () => {
+      test('should reject request when age_months is missing (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/age_months/i);
+      });
+
+      test('should reject request when age_months is not integer (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8.5,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/số nguyên/i);
+      });
+
+      test('should reject request when age_months < 6 or > 24 (400)', async () => {
+        const resUnder = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 5,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo gà'
+          });
+        expect(resUnder.status).toBe(400);
+        expect(resUnder.body.error).toContain('6 đến 24 tháng');
+
+        const resOver = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 25,
+            feeding_method: 'BLW',
+            current_dish_name: 'Cơm nát cá hồi'
+          });
+        expect(resOver.status).toBe(400);
+        expect(resOver.body.error).toContain('6 đến 24 tháng');
+      });
+
+      test('should reject request when feeding_method is missing or empty (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: '   ',
+            current_dish_name: 'Cháo cá hồi'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/feeding_method/i);
+      });
+
+      test('should reject request when current_dish_name is missing or empty (400)', async () => {
+        const resMissing = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống'
+          });
+        expect(resMissing.status).toBe(400);
+        expect(resMissing.body.error).toMatch(/current_dish_name/i);
+
+        const resEmpty = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            current_dish_name: '   '
+          });
+        expect(resEmpty.status).toBe(400);
+        expect(resEmpty.body.error).toMatch(/current_dish_name/i);
+      });
+
+      test('should reject request when available_ingredients is not an array (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi',
+            available_ingredients: 'cá hồi'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toContain('mảng');
+      });
+
+      test('should reject request when custom_ingredients is not an array (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi',
+            custom_ingredients: 'hạt sen'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toContain('mảng');
+      });
+
+      test('should reject request when meal_type is invalid (400)', async () => {
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi',
+            meal_type: 'Bữa tráng miệng đặc biệt'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/meal_type/i);
+      });
+    });
+
+    describe('Success Response & Recipe Differentiation', () => {
+      test('should return { recipe } with dish_name !== current_dish_name', async () => {
+        const currentDish = 'Cháo thịt gà nấu bí đỏ';
+
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            meal_type: 'Bữa chính',
+            current_dish_name: currentDish,
+            available_ingredients: ['Bí đỏ', 'Thịt gà']
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('recipe');
+
+        const { recipe } = res.body;
+        expect(recipe).toHaveProperty('dish_name');
+        expect(recipe.dish_name.toLowerCase().trim()).not.toBe(currentDish.toLowerCase().trim());
+        expect(recipe).toHaveProperty('suitable_age_range');
+        expect(recipe).toHaveProperty('texture_description');
+        expect(recipe).toHaveProperty('yield_portion');
+        expect(recipe).toHaveProperty('prep_time_minutes');
+        expect(recipe).toHaveProperty('cook_time_minutes');
+        expect(recipe).toHaveProperty('difficulty');
+        expect(recipe).toHaveProperty('available_ingredients_used');
+        expect(recipe).toHaveProperty('missing_ingredients_needed');
+        expect(recipe).toHaveProperty('cooking_steps');
+        expect(recipe).toHaveProperty('pediatrician_tip');
+      });
+
+      test('should return distinct snack recipe for Bữa phụ', async () => {
+        const currentDish = 'Pudding bơ yến mạch mềm thơm';
+
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 7,
+            feeding_method: 'Truyền thống',
+            meal_type: 'Bữa phụ',
+            current_dish_name: currentDish,
+            available_ingredients: ['Bơ', 'Chuối']
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('recipe');
+        expect(res.body.recipe.dish_name.toLowerCase().trim()).not.toBe(currentDish.toLowerCase().trim());
+      });
+
+      test('should handle mock Gemini response and ensure SINGLE_RECIPE_SCHEMA compliance', async () => {
+        const mockSingleRecipe = {
+          dish_name: 'Súp khoai lang dashi bổ dưỡng',
+          suitable_age_range: '8 tháng',
+          feeding_method: 'Truyền thống',
+          texture_description: 'Độ thô 1:7 mịn nhuyễn có lợn cợn nhẹ',
+          yield_portion: '1 bát 120ml',
+          prep_time_minutes: 10,
+          cook_time_minutes: 15,
+          difficulty: 'Dễ',
+          available_ingredients_used: [{ name: 'Khoai lang', amount: '40g' }],
+          missing_ingredients_needed: [{ name: 'Nước dashi', amount: '80ml' }],
+          cooking_steps: ['Hấp khoai lang', 'Nghiền mịn với dashi'],
+          pediatrician_tip: 'Kiểm tra nhiệt độ trước khi cho bé ăn'
+        };
+
+        jest.spyOn(geminiService, 'regenerateSingleRecipe').mockResolvedValueOnce(mockSingleRecipe);
+
+        const res = await request(app)
+          .post('/api/regenerate-single-recipe')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            current_dish_name: 'Cháo cá hồi',
+            available_ingredients: ['Khoai lang']
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body.recipe.dish_name).toBe('Súp khoai lang dashi bổ dưỡng');
+      });
+    });
+
+    describe('Pediatric Safety Guardrails for Snacks/Bữa phụ (< 12m)', () => {
+      test('regenerateSingleRecipe should never include salt/sugar/honey in Bữa phụ for age < 12m', async () => {
+        const recipe = await geminiService.regenerateSingleRecipe({
+          age_months: 7,
+          feeding_method: 'Truyền thống',
+          meal_type: 'Bữa phụ',
+          current_dish_name: 'Pudding bơ',
+          available_ingredients: ['Bơ', 'Yến mạch'],
+          custom_ingredients: ['đường', 'mật ong']
+        });
+
+        expect(recipe).toBeDefined();
+        const ingredients = [
+          ...recipe.available_ingredients_used,
+          ...recipe.missing_ingredients_needed
+        ].map(i => i.name.toLowerCase());
+        const steps = recipe.cooking_steps.join(' ').toLowerCase();
+
+        for (const forbidden of ['muối', 'đường', 'mật ong', 'nước mắm', 'bột ngọt']) {
+          expect(ingredients.some(i => i.includes(forbidden))).toBe(false);
+          expect(steps.includes(forbidden)).toBe(false);
+        }
+
+        expect(() => geminiService.validatePediatricSafety([recipe], 7)).not.toThrow();
+      });
+
+      test('validatePediatricSafety should reject unsafe snack recipe containing honey for baby 9 months', () => {
+        const unsafeSnack = {
+          dish_name: 'Bánh chuối yến mạch',
+          suitable_age_range: '9 tháng',
+          feeding_method: 'Truyền thống',
+          texture_description: 'Mềm',
+          yield_portion: '1 cái',
+          prep_time_minutes: 5,
+          cook_time_minutes: 10,
+          difficulty: 'Dễ',
+          available_ingredients_used: [{ name: 'Chuối', amount: '1 quả' }],
+          missing_ingredients_needed: [{ name: 'Mật ong rừng', amount: '5ml' }],
+          cooking_steps: ['Trộn chuối với mật ong rồi hấp'],
+          pediatrician_tip: 'Ngon ngọt'
+        };
+
+        expect(() => {
+          geminiService.validatePediatricSafety(unsafeSnack, 9);
+        }).toThrow(/Pediatric Safety Violation.*mật ong/i);
+      });
+    });
+  });
 });

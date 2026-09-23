@@ -99,6 +99,60 @@ const RECIPE_SCHEMA = {
   required: ['safety_analysis', 'recipes']
 };
 
+const SINGLE_RECIPE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    dish_name: { type: 'STRING' },
+    suitable_age_range: { type: 'STRING' },
+    feeding_method: { type: 'STRING' },
+    texture_description: { type: 'STRING' },
+    yield_portion: { type: 'STRING' },
+    prep_time_minutes: { type: 'INTEGER' },
+    cook_time_minutes: { type: 'INTEGER' },
+    difficulty: { type: 'STRING' },
+    available_ingredients_used: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          amount: { type: 'STRING' }
+        },
+        required: ['name', 'amount']
+      }
+    },
+    missing_ingredients_needed: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          amount: { type: 'STRING' }
+        },
+        required: ['name', 'amount']
+      }
+    },
+    cooking_steps: {
+      type: 'ARRAY',
+      items: { type: 'STRING' }
+    },
+    pediatrician_tip: { type: 'STRING' }
+  },
+  required: [
+    'dish_name',
+    'suitable_age_range',
+    'texture_description',
+    'yield_portion',
+    'prep_time_minutes',
+    'cook_time_minutes',
+    'difficulty',
+    'available_ingredients_used',
+    'missing_ingredients_needed',
+    'cooking_steps',
+    'pediatrician_tip'
+  ]
+};
+
 const PROHIBITED_UNDER_12M = [
   'muối',
   'salt',
@@ -268,7 +322,9 @@ function evaluateIngredientSafety(ingredient, ageMonths) {
  */
 function validatePediatricSafety(recipes, ageMonths) {
   if (ageMonths < 12) {
-    for (const recipe of recipes) {
+    const list = Array.isArray(recipes) ? recipes : [recipes];
+    for (const recipe of list) {
+      if (!recipe) continue;
       const allIngredients = [
         ...(recipe.available_ingredients_used || []),
         ...(recipe.missing_ingredients_needed || [])
@@ -292,11 +348,24 @@ function validatePediatricSafety(recipes, ageMonths) {
 /**
  * Fallback generator for tests or offline sandbox environments
  */
-function generateFallbackRecipes(ageMonths, feedingMethod, availableIngredients, customIngredients) {
+function generateFallbackRecipes(ageMonths, feedingMethod, mealTypeOrAvailable, availableOrCustom, maybeCustom) {
+  let mealType = 'Bữa chính';
+  let availableIngredients = [];
+  let customIngredients = [];
+
+  if (typeof mealTypeOrAvailable === 'string' && (mealTypeOrAvailable === 'Bữa chính' || mealTypeOrAvailable === 'Bữa phụ')) {
+    mealType = mealTypeOrAvailable;
+    availableIngredients = availableOrCustom || [];
+    customIngredients = maybeCustom || [];
+  } else {
+    availableIngredients = mealTypeOrAvailable || [];
+    customIngredients = availableOrCustom || [];
+  }
+
   const rawList = [...(availableIngredients || []), ...(customIngredients || [])];
   const combinedIngredients = rawList.map(capitalizeIngredient).filter(Boolean);
 
-  const evalList = combinedIngredients.length > 0 ? combinedIngredients : ['Bí đỏ', 'Thịt gà'];
+  const evalList = combinedIngredients.length > 0 ? combinedIngredients : (mealType === 'Bữa phụ' ? ['Bơ', 'Yến mạch'] : ['Bí đỏ', 'Thịt gà']);
   const ingredientEvaluations = evalList.map(ing => evaluateIngredientSafety(ing, ageMonths));
 
   const hasUnsafe = ingredientEvaluations.some(e => e.status === 'UNSAFE');
@@ -323,11 +392,6 @@ function generateFallbackRecipes(ageMonths, feedingMethod, availableIngredients,
     return true;
   });
 
-  const primaryIngr = safeIngredients[0] || 'Bí đỏ';
-  const secondaryIngr =
-    safeIngredients.find((ing, idx) => idx > 0 && !ing.toLowerCase().includes('dầu')) || 'Thịt gà';
-  const oil = safeIngredients.find(i => i.toLowerCase().includes('dầu')) || 'Dầu óc chó';
-
   let texture = '';
   let ageRange = `${ageMonths} tháng`;
   if (ageMonths <= 7) {
@@ -339,6 +403,107 @@ function generateFallbackRecipes(ageMonths, feedingMethod, availableIngredients,
   } else {
     texture = 'Cơm nát/thức ăn gia đình cắt nhỏ mềm vừa miệng bé';
   }
+
+  if (mealType === 'Bữa phụ') {
+    const snackPrimary = safeIngredients.find(i => {
+      const l = i.toLowerCase();
+      return (
+        l.includes('bơ') ||
+        l.includes('chuối') ||
+        l.includes('khoai') ||
+        l.includes('bí') ||
+        l.includes('táo') ||
+        l.includes('yến mạch') ||
+        l.includes('đu đủ')
+      );
+    }) || safeIngredients[0] || 'Bơ sáp';
+
+    const snackRecipes = [
+      {
+        dish_name: `Pudding ${snackPrimary} yến mạch mềm thơm`,
+        suitable_age_range: ageRange,
+        feeding_method: feedingMethod,
+        texture_description: ageMonths <= 7 ? 'Mịn nhuyễn, béo ngậy, dễ nuốt' : 'Độ thô mềm mịn, xốp nhẹ',
+        yield_portion: '1 hũ nhỏ (khoảng 80-100ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 10,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: snackPrimary, amount: '30g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Yến mạch cán dẹt', amount: '20g' },
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '60ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Ngâm yến mạch với nước ấm 10 phút cho nở mềm rồi nấu chín sánh.`,
+          `Bước 2: ${snackPrimary} nghiền nhuyễn mịn phù hợp với bé ${ageMonths} tháng.`,
+          `Bước 3: Trộn đều ${snackPrimary} cùng yến mạch ấm và sữa công thức/sữa mẹ.`,
+          `Bước 4: Rót ra hũ, để nguội bớt cho bé thưởng thức bữa phụ bổ dưỡng.`
+        ],
+        pediatrician_tip: ageMonths < 12
+          ? 'Bữa phụ tuyệt đối KHÔNG thêm đường hay mật ong. Vị ngọt thanh tự nhiên từ trái cây và sữa là hoàn hảo cho bé dưới 1 tuổi.'
+          : 'Bữa phụ nên cách bữa chính ít nhất 1.5 - 2 tiếng để bé không bị no ngang khi vào bữa chính.'
+      },
+      {
+        dish_name: `Sinh tố ${snackPrimary} béo ngậy dinh dưỡng`,
+        suitable_age_range: ageRange,
+        feeding_method: feedingMethod,
+        texture_description: 'Sánh mịn màng, thơm ngậy',
+        yield_portion: '1 cốc nhỏ (80ml)',
+        prep_time_minutes: 5,
+        cook_time_minutes: 0,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: snackPrimary, amount: '40g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Sữa mẹ hoặc sữa công thức ấm', amount: '50ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: ${snackPrimary} gọt vỏ, lấy phần thịt mềm tươi ngon.`,
+          `Bước 2: Dùng nĩa dằm mịn hoặc xay nhuyễn cùng sữa ấm.`,
+          `Bước 3: Khuấy đều cho hỗn hợp đồng nhất, sánh mịn.`,
+          `Bước 4: Cho bé dùng ngay sau khi chế biến để giữ trọn vẹn vitamin tươi.`
+        ],
+        pediatrician_tip: 'Nên cho bé dùng sinh tố tươi ngay trong vòng 20 phút sau khi chế biến để tránh bị oxy hóa mất chất.'
+      },
+      {
+        dish_name: `Custard lòng đỏ trứng hấp ${snackPrimary} mềm tan`,
+        suitable_age_range: ageRange,
+        feeding_method: feedingMethod,
+        texture_description: 'Mềm mướt như thạch pudding, tan ngay đầu lưỡi',
+        yield_portion: '1 khuôn nhỏ (60g)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Trung bình',
+        available_ingredients_used: [
+          { name: snackPrimary, amount: '25g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Lòng đỏ trứng gà ta', amount: '1 quả' },
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '50ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: ${snackPrimary} hấp chín, rây nhuyễn mịn.`,
+          `Bước 2: Đánh tan nhẹ lòng đỏ trứng với sữa ấm (không đánh nổi bọt).`,
+          `Bước 3: Lọc hỗn hợp qua rây 2 lần để bánh mịn mướt, rót vào hũ thủy tinh bọc màng thực phẩm.`,
+          `Bước 4: Hấp cách thủy lửa nhỏ liu riu trong 12-15 phút đến khi bánh đông mềm.`
+        ],
+        pediatrician_tip: 'Trẻ dưới 1 tuổi chỉ nên ăn lòng đỏ trứng đã nấu chín hoàn toàn để phòng ngừa dị ứng và nhiễm khuẩn Salmonella.'
+      }
+    ];
+
+    return {
+      safety_analysis: safetyAnalysis,
+      recipes: snackRecipes
+    };
+  }
+
+  const primaryIngr = safeIngredients[0] || 'Bí đỏ';
+  const secondaryIngr =
+    safeIngredients.find((ing, idx) => idx > 0 && !ing.toLowerCase().includes('dầu')) || 'Thịt gà';
+  const oil = safeIngredients.find(i => i.toLowerCase().includes('dầu')) || 'Dầu óc chó';
 
   const baseRecipes = [
     {
@@ -425,9 +590,308 @@ function generateFallbackRecipes(ageMonths, feedingMethod, availableIngredients,
 }
 
 /**
+ * Fallback generator for a single recipe when replacing/regenerating
+ */
+function generateFallbackSingleRecipe({
+  age_months,
+  feeding_method,
+  meal_type = 'Bữa chính',
+  current_dish_name = '',
+  available_ingredients = [],
+  custom_ingredients = []
+}) {
+  const rawList = [...(available_ingredients || []), ...(custom_ingredients || [])];
+  const combinedIngredients = rawList.map(capitalizeIngredient).filter(Boolean);
+  const safeIngredients = combinedIngredients.filter(ing => {
+    if (age_months < 12) {
+      const lower = ing.toLowerCase();
+      return !PROHIBITED_UNDER_12M.some(banned => lower.includes(banned));
+    }
+    return true;
+  });
+
+  const primaryIngr = safeIngredients[0] || (meal_type === 'Bữa phụ' ? 'Bơ' : 'Bí đỏ');
+  const secondaryIngr =
+    safeIngredients.find((ing, idx) => idx > 0 && !ing.toLowerCase().includes('dầu')) ||
+    (meal_type === 'Bữa phụ' ? 'Chuối' : 'Thịt gà');
+  const oil = safeIngredients.find(i => i.toLowerCase().includes('dầu')) || 'Dầu óc chó';
+
+  let texture = '';
+  let ageRange = `${age_months} tháng`;
+  if (age_months <= 7) {
+    texture = 'Độ thô 1:10, mịn nhuyễn, rây kỹ, không lợn cợn';
+  } else if (age_months <= 8) {
+    texture = 'Độ thô 1:7, cháo vỡ hạt, thức ăn nghiền mềm có lợn cợn nhẹ';
+  } else if (age_months <= 11) {
+    texture = 'Độ thô 1:5, băm nhỏ/thái hạt lựu mềm, tập bốc nhón';
+  } else {
+    texture = 'Cơm nát/thức ăn gia đình cắt nhỏ mềm vừa miệng bé';
+  }
+
+  let candidates = [];
+
+  if (meal_type === 'Bữa phụ') {
+    candidates = [
+      {
+        dish_name: `Pudding ${primaryIngr} yến mạch mềm thơm`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: 'Mềm mượt sánh mịn, thơm ngậy',
+        yield_portion: '1 hũ nhỏ (80-100ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 10,
+        difficulty: 'Dễ',
+        available_ingredients_used: [{ name: primaryIngr, amount: '30g' }],
+        missing_ingredients_needed: [
+          { name: 'Yến mạch cán dẹt', amount: '20g' },
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '60ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Nấu chín nhừ yến mạch cùng nước ấm cho nở bông sánh.`,
+          `Bước 2: ${primaryIngr} nghiền nhuyễn mịn rồi trộn đều vào yến mạch ấm.`,
+          `Bước 3: Hòa cùng sữa công thức hoặc sữa mẹ ấm rồi khuấy đều nhẹ tay.`,
+          `Bước 4: Múc ra hũ cho bé thưởng thức bữa phụ nhẹ nhàng bổ dưỡng.`
+        ],
+        pediatrician_tip: age_months < 12
+          ? 'Không thêm đường hoặc mật ong cho trẻ dưới 1 tuổi; tận dụng vị ngọt nguyên bản từ sữa và rau củ trái cây.'
+          : 'Cho bé ăn bữa phụ cách bữa chính 1.5 - 2 tiếng để không ảnh hưởng bữa ăn chính.'
+      },
+      {
+        dish_name: `Sinh tố ${primaryIngr} bơ chuối mịn màng`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: 'Sánh mịn, thơm ngọt tự nhiên',
+        yield_portion: '1 ly nhỏ (80ml)',
+        prep_time_minutes: 5,
+        cook_time_minutes: 0,
+        difficulty: 'Dễ',
+        available_ingredients_used: [{ name: primaryIngr, amount: '40g' }],
+        missing_ingredients_needed: [
+          { name: 'Chuối tiêu chín mềm', amount: '1/2 quả' },
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '40ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: ${primaryIngr} và chuối bóc vỏ, thái miếng nhỏ.`,
+          `Bước 2: Xay hoặc dầm thật nhuyễn cùng sữa ấm đến khi mềm mượt.`,
+          `Bước 3: Rót ra cốc nhỏ cho bé dùng thìa xúc hoặc tập mút.`
+        ],
+        pediatrician_tip: 'Trái cây chín tự nhiên cung cấp enzyme tiêu hóa và kali hỗ trợ tim mạch và hệ cơ của bé.'
+      },
+      {
+        dish_name: `Bánh flan lòng đỏ trứng hấp sữa mềm tan`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: 'Mềm mướt núng nính, tan ngay trên đầu lưỡi',
+        yield_portion: '1 khuôn nhỏ (60g)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Trung bình',
+        available_ingredients_used: [{ name: primaryIngr, amount: '20g' }],
+        missing_ingredients_needed: [
+          { name: 'Lòng đỏ trứng gà', amount: '1 quả' },
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '50ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Đánh tan nhẹ lòng đỏ trứng cùng sữa ấm (không đánh bông bọt khí).`,
+          `Bước 2: Trộn cùng ${primaryIngr} đã hấp chín rây mịn, lọc qua rây 2 lần.`,
+          `Bước 3: Đổ vào hũ thủy tinh, bọc kín nắp hoặc màng bọc thực phẩm.`,
+          `Bước 4: Hấp cách thủy lửa nhỏ trong 15 phút đến khi mặt bánh se lại đông mềm.`
+        ],
+        pediatrician_tip: 'Lòng đỏ trứng giàu choline và lecithin rất tốt cho sự phát triển của tế bào não bé.'
+      },
+      {
+        dish_name: `Súp yến mạch hạt sen nghiền ấm áp`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: 'Súp loãng sánh mịn, dễ nuốt',
+        yield_portion: '1 bát nhỏ (100ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Dễ',
+        available_ingredients_used: [{ name: primaryIngr, amount: '30g' }],
+        missing_ingredients_needed: [
+          { name: 'Hạt sen tươi (bỏ tâm sen)', amount: '20g' },
+          { name: 'Yến mạch cán vỡ', amount: '15g' }
+        ],
+        cooking_steps: [
+          `Bước 1: Hạt sen bỏ tâm, hấp chín mềm nhừ rồi tán nhuyễn.`,
+          `Bước 2: Nấu yến mạch cùng nước dashi hoặc nước ấm 7 phút.`,
+          `Bước 3: Trộn hạt sen nghiền và ${primaryIngr} vào nồi yến mạch đun sôi lại 2 phút.`,
+          `Bước 4: Để ấm vừa phải rồi cho bé thưởng thức bữa xế chiều ấm bụng.`
+        ],
+        pediatrician_tip: 'Hạt sen giúp bé an thần, ngủ ngon giấc và hỗ trợ tiêu hóa lành mạnh.'
+      },
+      {
+        dish_name: `Bơ nghiền sốt sữa tươi ngon`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: 'Mềm mướt như kem tươi',
+        yield_portion: '1 phần ăn dặm (80g)',
+        prep_time_minutes: 5,
+        cook_time_minutes: 0,
+        difficulty: 'Dễ',
+        available_ingredients_used: [{ name: primaryIngr, amount: '40g' }],
+        missing_ingredients_needed: [
+          { name: 'Sữa mẹ hoặc sữa công thức', amount: '30ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Lấy phần thịt bơ sáp dẻo chín tới.`,
+          `Bước 2: Tán thật nhuyễn bằng nĩa hoặc rây inox.`,
+          `Bước 3: Thêm từng thìa sữa ấm khuấy đều đến khi đạt độ lỏng mịn vừa ý.`,
+          `Bước 4: Đút từng thìa nhỏ cho bé làm quen với chất béo thực vật lành mạnh.`
+        ],
+        pediatrician_tip: 'Bơ là siêu thực phẩm cho trẻ nhỏ nhờ lượng axit béo không bão hòa đơn dồi dào.'
+      }
+    ];
+  } else {
+    // "Bữa chính"
+    candidates = [
+      {
+        dish_name: `Cháo ${secondaryIngr} nấu ${primaryIngr}`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: texture,
+        yield_portion: '1 bát nhỏ (khoảng 120-150ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 20,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: primaryIngr, amount: '30g' },
+          { name: secondaryIngr, amount: '30g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Gạo tẻ thơm', amount: '30g' },
+          { name: oil, amount: '5ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Vo sạch gạo, nấu cháo theo tỷ lệ phù hợp với độ tuổi ${age_months} tháng.`,
+          `Bước 2: Sơ chế ${secondaryIngr} và ${primaryIngr} sạch sẽ, thái nhỏ hoặc xay nhuyễn tùy giai đoạn.`,
+          `Bước 3: Nấu chín nhừ ${secondaryIngr} và ${primaryIngr}, trộn cùng cháo và khuấy đều trên lửa nhỏ 3 phút.`,
+          `Bước 4: Tắt bếp, để nguội khoảng 40-45 độ C rồi thêm 1 thìa cà phê ${oil} trước khi cho bé dùng.`
+        ],
+        pediatrician_tip: age_months < 12
+          ? 'Tuyệt đối KHÔNG nêm muối, mắm, đường, hạt nêm hoặc mật ong cho trẻ dưới 1 tuổi để bảo vệ thận non nớt.'
+          : 'Hạn chế gia vị công nghiệp, ưu tiên vị ngọt tự nhiên từ rau củ và thịt cá tươi.'
+      },
+      {
+        dish_name: `Súp ${primaryIngr} bổ dưỡng cùng ${secondaryIngr}`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: texture,
+        yield_portion: '1 phần ăn dặm (120ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: primaryIngr, amount: '40g' },
+          { name: secondaryIngr, amount: '25g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Nước dùng dashi rau củ', amount: '100ml' },
+          { name: oil, amount: '5ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: ${primaryIngr} và ${secondaryIngr} làm sạch, hấp chín mềm.`,
+          `Bước 2: Nghiền mịn hoặc băm nhỏ phù hợp độ thô tháng tuổi ${age_months}m.`,
+          `Bước 3: Hòa cùng nước dashi rau củ ấm, đun sôi lăn tăn 3 phút.`,
+          `Bước 4: Thêm dầu ăn dặm khuấy đều khi súp còn ấm.`
+        ],
+        pediatrician_tip: 'Nên kiểm tra nhiệt độ thức ăn trên cổ tay trước khi đút cho bé để tránh bỏng nhiệt.'
+      },
+      {
+        dish_name: `${secondaryIngr} hấp mềm sốt ${primaryIngr}`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: texture,
+        yield_portion: '1 phần ăn (100g)',
+        prep_time_minutes: 15,
+        cook_time_minutes: 15,
+        difficulty: 'Trung bình',
+        available_ingredients_used: [
+          { name: secondaryIngr, amount: '40g' },
+          { name: primaryIngr, amount: '30g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Hành tây (tạo ngọt tự nhiên)', amount: '10g' }
+        ],
+        cooking_steps: [
+          `Bước 1: ${secondaryIngr} băm nhỏ (hoặc cắt thanh vừa tay nếu ăn BLW), hấp chín tới.`,
+          `Bước 2: Hấp chín ${primaryIngr} cùng một lát hành tây nhỏ, xay nhuyễn làm sốt sánh mịn.`,
+          `Bước 3: Rưới sốt lên ${secondaryIngr} đã hấp chín mềm.`,
+          `Bước 4: Hướng dẫn bé tự bốc nhón hoặc xúc thìa vui vẻ.`
+        ],
+        pediatrician_tip: 'Tránh các loại hạt nguyên hạt hoặc cà chua bi nguyên quả chưa cắt nhỏ vì có nguy cơ gây hóc dị vật đường thở.'
+      },
+      {
+        dish_name: `Cháo yến mạch ${secondaryIngr} hầm rau củ`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: texture,
+        yield_portion: '1 chén nhỏ (120ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: secondaryIngr, amount: '30g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Yến mạch cán dẹt', amount: '25g' },
+          { name: 'Cà rốt băm nhuyễn', amount: '20g' },
+          { name: oil, amount: '5ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Nấu chín mềm yến mạch cùng cà rốt trong nước dùng dashi.`,
+          `Bước 2: Thêm ${secondaryIngr} băm nhỏ vào khuấy đều trên lửa nhỏ 5 phút.`,
+          `Bước 3: Tắt bếp, thêm dầu ăn dặm cho bé thưởng thức.`
+        ],
+        pediatrician_tip: 'Yến mạch giàu beta-glucan và chất xơ hòa tan giúp nhuận tràng tự nhiên.'
+      },
+      {
+        dish_name: `${primaryIngr} nghiền nhuyễn nấu thịt nạc băm`,
+        suitable_age_range: ageRange,
+        feeding_method: feeding_method,
+        texture_description: texture,
+        yield_portion: '1 phần (120ml)',
+        prep_time_minutes: 10,
+        cook_time_minutes: 15,
+        difficulty: 'Dễ',
+        available_ingredients_used: [
+          { name: primaryIngr, amount: '50g' }
+        ],
+        missing_ingredients_needed: [
+          { name: 'Thịt heo nạc thăn', amount: '30g' },
+          { name: oil, amount: '5ml' }
+        ],
+        cooking_steps: [
+          `Bước 1: Thịt nạc thăn băm nhỏ, phi thơm với 1 giọt dầu ăn dặm rồi nấu chín mềm.`,
+          `Bước 2: ${primaryIngr} hấp chín, nghiền mịn.`,
+          `Bước 3: Trộn đều thịt băm và ${primaryIngr}, đun sôi nhẹ 2 phút.`
+        ],
+        pediatrician_tip: 'Thịt nạc thăn cung cấp protein lành tính, rất hiếm khi gây dị ứng cho trẻ nhỏ.'
+      }
+    ];
+  }
+
+  // Filter candidates whose dish_name is not current_dish_name
+  const cleanCurrent = (current_dish_name || '').toLowerCase().trim();
+  const differentCandidates = candidates.filter(
+    c => c.dish_name.toLowerCase().trim() !== cleanCurrent
+  );
+
+  const selectedRecipe = differentCandidates.length > 0 ? differentCandidates[0] : candidates[0];
+  return selectedRecipe;
+}
+
+/**
  * Calls Google Gemini API using gemini-3.8-flash with strict schema & guardrails
  */
-async function generateBabyRecipes({ age_months, feeding_method, available_ingredients, custom_ingredients }) {
+async function generateBabyRecipes({
+  age_months,
+  feeding_method,
+  meal_type = 'Bữa chính',
+  available_ingredients,
+  custom_ingredients
+}) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   // Normalize & capitalize input ingredients
@@ -436,6 +900,11 @@ async function generateBabyRecipes({ age_months, feeding_method, available_ingre
 
   const systemInstruction = `You are a certified pediatric nutritionist and baby food chef specializing in infant feeding from 6 to 24 months.
 Generate an in-depth pediatric safety analysis (safety_analysis) and exactly 3 healthy, balanced baby food recipes matching the user's inputs.
+
+MEAL TYPE GUIDELINES:
+- "Bữa chính": Nourishing main meals with complete savory balance (cháo, súp, cơm nát, rau củ hấp đạm phù hợp giai đoạn ăn dặm).
+- "Bữa phụ": Light nutritious snacks, fruit purees, steamed custards, oatmeal puddings, avocado smoothies, seed milk suitable for infant age.
+- Prohibited ingredients rule applies unconditionally to BOTH "Bữa chính" and "Bữa phụ": For infants under 12 months, strictly ZERO salt, honey, fish sauce, sugar, MSG, or seasoning powder! Sweetness in snacks must come solely from natural fruits or milk.
 
 PEDIATRIC SAFETY EVALUATION REQUIREMENTS:
 1. You MUST evaluate every single provided ingredient (from both available_ingredients and custom_ingredients) for pediatric suitability for a baby at age ${age_months} months.
@@ -464,6 +933,7 @@ STRICT PEDIATRIC RECIPE GUARDRAILS:
   const userPrompt = `Hãy tạo đánh giá an toàn dinh dưỡng và 3 món ăn dặm phù hợp với thông tin sau:
 - Độ tuổi: ${age_months} tháng tuổi
 - Phương pháp ăn dặm: ${feeding_method}
+- Loại bữa ăn: ${meal_type}
 - Nguyên liệu sẵn có: ${cleanAvailable.join(', ') || 'Chưa chọn'}
 - Nguyên liệu tùy chọn khác: ${cleanCustom.join(', ') || 'Không có'}
 
@@ -471,7 +941,7 @@ Tuân thủ nghiêm ngặt quy tắc an toàn nhi khoa và định dạng JSON t
 
   // If no API key or dummy key is provided, use pediatric-safe fallback generator
   if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.startsWith('mock_')) {
-    const fallback = generateFallbackRecipes(age_months, feeding_method, cleanAvailable, cleanCustom);
+    const fallback = generateFallbackRecipes(age_months, feeding_method, meal_type, cleanAvailable, cleanCustom);
     validatePediatricSafety(fallback.recipes, age_months);
     return fallback;
   }
@@ -534,17 +1004,163 @@ Tuân thủ nghiêm ngặt quy tắc an toàn nhi khoa và định dạng JSON t
   } catch (error) {
     console.warn('[BeChef Gemini Service Warning]:', error.message || error);
     console.warn('Activating pediatric safety fallback generator to maintain uninterrupted service.');
-    const fallback = generateFallbackRecipes(age_months, feeding_method, cleanAvailable, cleanCustom);
+    const fallback = generateFallbackRecipes(age_months, feeding_method, meal_type, cleanAvailable, cleanCustom);
     validatePediatricSafety(fallback.recipes, age_months);
     return fallback;
   }
 }
 
+/**
+ * Regenerates 1 single baby food recipe different from current_dish_name
+ */
+async function regenerateSingleRecipe({
+  age_months,
+  feeding_method,
+  meal_type = 'Bữa chính',
+  current_dish_name,
+  available_ingredients,
+  custom_ingredients
+}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  const cleanAvailable = (available_ingredients || []).map(capitalizeIngredient).filter(Boolean);
+  const cleanCustom = (custom_ingredients || []).map(capitalizeIngredient).filter(Boolean);
+  const cleanCurrent = (current_dish_name || '').trim();
+
+  // If no API key or dummy key is provided, use pediatric-safe fallback generator
+  if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.startsWith('mock_')) {
+    const fallbackRecipe = generateFallbackSingleRecipe({
+      age_months,
+      feeding_method,
+      meal_type,
+      current_dish_name: cleanCurrent,
+      available_ingredients: cleanAvailable,
+      custom_ingredients: cleanCustom
+    });
+    validatePediatricSafety([fallbackRecipe], age_months);
+    return fallbackRecipe;
+  }
+
+  const systemInstruction = `You are a certified pediatric nutritionist and baby food chef specializing in infant feeding from 6 to 24 months.
+Your mission is to generate exactly ONE alternative healthy, balanced baby food recipe to replace the dish "${cleanCurrent}".
+The new dish MUST have a different name and concept from "${cleanCurrent}".
+
+MEAL TYPE GUIDELINES:
+- "Bữa chính": Nourishing main meals with complete savory balance (cháo, súp, cơm nát, rau củ hấp đạm phù hợp giai đoạn ăn dặm).
+- "Bữa phụ": Light nutritious snacks, fruit purees, steamed custards, oatmeal puddings, avocado smoothies, seed milk suitable for infant age.
+
+STRICT PEDIATRIC RECIPE GUARDRAILS (APPLIES TO BOTH BỮA CHÍNH AND BỮA PHỤ):
+1. Infant age < 12 months: STRICTLY ZERO honey, salt, sugar, fish sauce, monosodium glutamate (MSG), hạt nêm, nước mắm. Do not recommend or include any added salt, sugar, honey, or artificial seasonings. Sweetness in snacks must come solely from fruits, sweet vegetables, or breast milk / formula.
+2. Choking hazards: STRICTLY PROHIBIT whole nuts, whole round fruits (e.g. uncut cherry tomatoes, uncut grapes). All foods must be appropriately prepared to eliminate choking risks.
+3. Texture standards strictly calibrated to age:
+   - 6-7 months: 1:10 smooth puree, finely strained, completely lump-free.
+   - 7-8 months: 1:7 soft mash, soft small lumps easily squashed with gums.
+   - 9-11 months: 1:5 finely chopped / small dice for pincer grasp training.
+   - 12-24 months: soft table food, diced bite-sized portions.
+4. Language: Recipe name, ingredient names, steps, texture description, and pediatrician tip MUST be in Vietnamese.
+5. Missing ingredients: Only list essential complementary items (e.g., gạo, dầu ăn dặm, yến mạch, sữa công thức/sữa mẹ, dashi) that the parent might need to buy.`;
+
+  const userPrompt = `Hãy tạo DUY NHẤT 1 món ăn dặm mới thay thế cho món "${cleanCurrent}" với thông tin sau:
+- Độ tuổi: ${age_months} tháng tuổi
+- Phương pháp ăn dặm: ${feeding_method}
+- Loại bữa ăn: ${meal_type}
+- Món hiện tại cần đổi: "${cleanCurrent}"
+- Món mới PHẢI KHÁC HOÀN TOÀN với món "${cleanCurrent}".
+- Nguyên liệu sẵn có: ${cleanAvailable.join(', ') || 'Chưa chọn'}
+- Nguyên liệu tùy chọn khác: ${cleanCustom.join(', ') || 'Không có'}
+
+Tuân thủ nghiêm ngặt quy tắc an toàn nhi khoa và định dạng JSON theo SINGLE_RECIPE_SCHEMA.`;
+
+  try {
+    let responseText = null;
+
+    if (GoogleGenAI) {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: userPrompt,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: SINGLE_RECIPE_SCHEMA,
+            temperature: 0.3
+          }
+        });
+        responseText = response.text;
+      } catch (sdkError) {
+        // Fall back to @google/generative-ai
+      }
+    }
+
+    if (!responseText && GoogleGenerativeAI) {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-3.8-flash',
+        systemInstruction,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: SINGLE_RECIPE_SCHEMA,
+          temperature: 0.3
+        }
+      });
+      const result = await model.generateContent(userPrompt);
+      const res = await result.response;
+      responseText = res.text();
+    }
+
+    if (!responseText) {
+      throw new Error('Empty response received from Gemini API');
+    }
+
+    const parsed = JSON.parse(responseText);
+    const singleRecipe = parsed.recipe || parsed;
+
+    if (!singleRecipe || !singleRecipe.dish_name) {
+      throw new Error('Invalid JSON structure returned by Gemini model for single recipe');
+    }
+
+    // Ensure dish_name is different from current_dish_name
+    if (singleRecipe.dish_name.toLowerCase().trim() === cleanCurrent.toLowerCase()) {
+      // If AI returned same dish name, fallback to diverse replacement
+      const fallbackRecipe = generateFallbackSingleRecipe({
+        age_months,
+        feeding_method,
+        meal_type,
+        current_dish_name: cleanCurrent,
+        available_ingredients: cleanAvailable,
+        custom_ingredients: cleanCustom
+      });
+      validatePediatricSafety([fallbackRecipe], age_months);
+      return fallbackRecipe;
+    }
+
+    validatePediatricSafety([singleRecipe], age_months);
+    return singleRecipe;
+  } catch (error) {
+    console.warn('[BeChef Gemini Service Warning]:', error.message || error);
+    console.warn('Activating pediatric safety fallback generator for single recipe.');
+    const fallbackRecipe = generateFallbackSingleRecipe({
+      age_months,
+      feeding_method,
+      meal_type,
+      current_dish_name: cleanCurrent,
+      available_ingredients: cleanAvailable,
+      custom_ingredients: cleanCustom
+    });
+    validatePediatricSafety([fallbackRecipe], age_months);
+    return fallbackRecipe;
+  }
+}
+
 module.exports = {
   generateBabyRecipes,
+  regenerateSingleRecipe,
   validatePediatricSafety,
   generateFallbackRecipes,
+  generateFallbackSingleRecipe,
   evaluateIngredientSafety,
   RECIPE_SCHEMA,
+  SINGLE_RECIPE_SCHEMA,
   PROHIBITED_UNDER_12M
 };

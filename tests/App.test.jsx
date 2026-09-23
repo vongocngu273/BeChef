@@ -3,6 +3,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import App from '../client/src/App';
 import * as recipeApi from '../client/src/api/recipeApi';
 
+jest.mock(
+  'html-to-image',
+  () => ({
+    toPng: jest.fn().mockResolvedValue('data:image/png;base64,mockPngData')
+  }),
+  { virtual: true }
+);
+
 const mockRecipesData = {
   recipes: [
     {
@@ -96,6 +104,17 @@ const mockRecipesWithSafety = {
 describe('Frontend UI: App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
+    window.speechSynthesis = {
+      speak: jest.fn(),
+      cancel: jest.fn(),
+      pause: jest.fn(),
+      resume: jest.fn()
+    };
+    window.SpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({
+      text,
+      lang: 'vi-VN'
+    }));
   });
 
   test('renders form controls with Vietnamese UI labels', () => {
@@ -347,5 +366,173 @@ describe('Frontend UI: App Component', () => {
     expect(gridStepItem).toHaveClass('line-through');
     expect(gridStepItem).toHaveClass('opacity-50');
   });
+
+  test('ThemeSwitcher: switches theme, updates localStorage, and applies new theme styling', () => {
+    render(<App />);
+
+    const themeSwitcher = screen.getByTestId('theme-switcher');
+    expect(themeSwitcher).toBeInTheDocument();
+
+    const toggleButton = screen.getByLabelText('Chọn chủ đề giao diện');
+    expect(toggleButton).toBeInTheDocument();
+
+    // Open theme dropdown
+    fireEvent.click(toggleButton);
+
+    // Select 'Cà Rốt Ấm Áp'
+    const carrotOption = screen.getByRole('menuitem', { name: /Cà Rốt Ấm Áp/i });
+    fireEvent.click(carrotOption);
+
+    // Assert localStorage updated
+    expect(localStorage.getItem('bechef-theme')).toBe('ca-rot');
+    expect(screen.getByText('Cà Rốt')).toBeInTheDocument();
+  });
+
+  test('MealType: allows selecting meal type and includes meal_type in generateRecipes payload', async () => {
+    const generateSpy = jest
+      .spyOn(recipeApi, 'generateRecipes')
+      .mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    // Click "Bữa phụ (Xế chiều/Tráng miệng)"
+    const snackOption = screen.getByText(/Bữa phụ/i);
+    fireEvent.click(snackOption);
+
+    // Submit form
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(generateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meal_type: 'Bữa phụ'
+        })
+      );
+    });
+  });
+
+  test('CookModeModal: opens fullscreen hands-free cooking mode, navigates steps, and plays speech synthesis', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+
+    // Click "Bắt đầu nấu" on first recipe card
+    const cookModeButtons = screen.getAllByRole('button', { name: /Bắt đầu nấu/i });
+    expect(cookModeButtons.length).toBe(3);
+    fireEvent.click(cookModeButtons[0]);
+
+    // Expect CookModeModal dialog to open
+    const cookDialog = screen.getByRole('dialog', { name: /Chế độ nấu bếp rảnh tay/i });
+    expect(cookDialog).toBeInTheDocument();
+    expect(within(cookDialog).getByText(/Chế độ Nấu Rảnh Tay/i)).toBeInTheDocument();
+    expect(within(cookDialog).getByText('Bước 1 / 3')).toBeInTheDocument();
+    expect(within(cookDialog).getByText('Nấu cháo nhừ.')).toBeInTheDocument();
+
+    // Click "Đọc bước này"
+    const voiceButton = screen.getByRole('button', { name: /Đọc hướng dẫn giọng nói/i });
+    fireEvent.click(voiceButton);
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+
+    // Navigate to next step
+    const nextButton = screen.getByRole('button', { name: /Bước tiếp theo/i });
+    fireEvent.click(nextButton);
+    expect(within(cookDialog).getByText('Bước 2 / 3')).toBeInTheDocument();
+    expect(within(cookDialog).getByText(/Xay nhuyễn thịt gà và bí đỏ đã hấp chín/i)).toBeInTheDocument();
+
+    // Close modal
+    const exitButton = screen.getByRole('button', { name: /Thoát chế độ nấu/i });
+    fireEvent.click(exitButton);
+    expect(screen.queryByRole('dialog', { name: /Chế độ nấu bếp rảnh tay/i })).not.toBeInTheDocument();
+  });
+
+  test('RegenerateSingleRecipe: replaces only 1 specific recipe card in place when clicking "Đổi món này"', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    const mockReplacement = {
+      recipe: {
+        dish_name: 'Cháo bắp ngọt thịt heo mềm tan',
+        suitable_age_range: '7 tháng',
+        feeding_method: 'Truyền thống',
+        texture_description: 'Độ thô mịn sánh 1:7',
+        yield_portion: '1 chén 150ml',
+        prep_time_minutes: 10,
+        cook_time_minutes: 20,
+        difficulty: 'Dễ',
+        available_ingredients_used: [{ name: 'Bắp ngọt', amount: '30g' }],
+        missing_ingredients_needed: [{ name: 'Thịt heo', amount: '30g' }],
+        cooking_steps: ['Bước 1: Hấp bắp ngọt.', 'Bước 2: Xay mịn nấu cùng cháo.'],
+        pediatrician_tip: 'Tập nhai mềm từ từ.'
+      }
+    };
+
+    const regenSpy = jest
+      .spyOn(recipeApi, 'regenerateSingleRecipe')
+      .mockResolvedValueOnce(mockReplacement);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
+      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+    });
+
+    // Click "Đổi món này" on card 0
+    const regenButtons = screen.getAllByRole('button', { name: /Đổi món này/i });
+    expect(regenButtons.length).toBe(3);
+    fireEvent.click(regenButtons[0]);
+
+    expect(regenSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        current_dish_name: 'Cháo gà bí đỏ thơm ngon'
+      })
+    );
+
+    // After replacement, card 0 has new dish, cards 1 and 2 are preserved
+    await waitFor(() => {
+      expect(screen.getByText('Cháo bắp ngọt thịt heo mềm tan')).toBeInTheDocument();
+      expect(screen.queryByText('Cháo gà bí đỏ thơm ngon')).not.toBeInTheDocument();
+      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
+      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+    });
+  });
+
+  test('SaveAsImage: exports recipe card as PNG using html-to-image when clicking "Lưu ảnh công thức"', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+    const htmlToImage = require('html-to-image');
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+
+    const exportButtons = screen.getAllByRole('button', { name: /Lưu ảnh công thức/i });
+    expect(exportButtons.length).toBe(3);
+
+    fireEvent.click(exportButtons[0]);
+
+    await waitFor(() => {
+      expect(htmlToImage.toPng).toHaveBeenCalled();
+    });
+
+    clickSpy.mockRestore();
+  });
 });
+
 

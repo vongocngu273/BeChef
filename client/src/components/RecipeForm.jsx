@@ -1,30 +1,95 @@
 import React, { useState } from 'react';
-import { Sparkles, Plus, X, Baby, UtensilsCrossed, ShieldAlert } from 'lucide-react';
+import { Sparkles, Plus, X, Baby, UtensilsCrossed, ShieldAlert, Sun, Coffee } from 'lucide-react';
 
 const FEEDING_METHODS = [
-  { id: 'Truyền thống', label: 'Truyền thống', desc: 'Cháo xay nhuyễn/nấu nhừ kết hợp' },
-  { id: 'Kiểu Nhật', label: 'Kiểu Nhật', desc: 'Ăn riêng từng món, tăng độ thô theo tuần' },
-  { id: 'BLW', label: 'BLW (Tự chỉ huy)', desc: 'Bé tự bốc thức ăn mềm dạng thanh/miếng' }
+  {
+    id: 'Truyền thống',
+    icon: '🥣',
+    label: 'Ăn dặm truyền thống',
+    desc: 'Cháo xay nhuyễn/nấu nhừ kết hợp rau củ thịt cá'
+  },
+  {
+    id: 'Kiểu Nhật',
+    icon: '🍱',
+    label: 'Ăn dặm kiểu Nhật',
+    desc: 'Ăn riêng từng món, tăng độ thô theo tuần chuẩn Nhật'
+  },
+  {
+    id: 'BLW',
+    icon: '🥦',
+    label: 'BLW (Tự chỉ huy)',
+    desc: 'Bé tự bốc thức ăn mềm dạng thanh/miếng'
+  }
+];
+
+const MEAL_TYPES = [
+  {
+    id: 'Bữa chính',
+    icon: '☀️',
+    label: 'Bữa chính (Trưa/Tối)',
+    desc: 'Cân đối đủ 4 nhóm chất chính'
+  },
+  {
+    id: 'Bữa phụ',
+    icon: '🥞',
+    label: 'Bữa phụ (Xế chiều/Tráng miệng)',
+    desc: 'Thanh nhẹ, bánh hấp, sinh tố, súp tráng miệng'
+  }
 ];
 
 const INGREDIENT_CATEGORIES = {
   protein: {
-    title: 'Đạm (Thịt, cá, trứng, đậu)',
-    items: ['Thịt heo', 'Thịt bò', 'Thịt gà', 'Cá hồi', 'Tôm', 'Đậu hũ']
+    title: 'Đạm (Thịt, cá, tôm, trứng, đậu)',
+    items: [
+      { name: 'Thịt gà', emoji: '🍗' },
+      { name: 'Thịt bò', emoji: '🥩' },
+      { name: 'Thịt heo', emoji: '🥩' },
+      { name: 'Cá hồi', emoji: '🐟' },
+      { name: 'Tôm', emoji: '🦐' },
+      { name: 'Trứng gà', emoji: '🥚' },
+      { name: 'Đậu hũ', emoji: '🧊' }
+    ]
   },
   veggie: {
-    title: 'Rau củ',
-    items: ['Bí đỏ', 'Cà rốt', 'Cải bó xôi', 'Mồng tơi']
+    title: 'Rau củ & Quả',
+    items: [
+      { name: 'Bí đỏ', emoji: '🎃' },
+      { name: 'Cà rốt', emoji: '🥕' },
+      { name: 'Khoai tây', emoji: '🥔' },
+      { name: 'Khoai lang', emoji: '🍠' },
+      { name: 'Bông cải xanh', emoji: '🥦' },
+      { name: 'Bắp ngọt', emoji: '🌽' },
+      { name: 'Cải bó xôi', emoji: '🌿' },
+      { name: 'Mồng tơi', emoji: '🌿' },
+      { name: 'Bơ', emoji: '🥑' }
+    ]
   },
-  oil: {
-    title: 'Dầu ăn dặm',
-    items: ['Dầu óc chó', 'Dầu mè', 'Dầu cá hồi']
+  fruit_grain: {
+    title: 'Trái cây & Tinh bột',
+    items: [
+      { name: 'Chuối chín', emoji: '🍌' },
+      { name: 'Táo đỏ', emoji: '🍎' },
+      { name: 'Quả lê', emoji: '🍐' },
+      { name: 'Gạo tẻ', emoji: '🍚' },
+      { name: 'Yến mạch', emoji: '🥣' }
+    ]
+  },
+  oil_milk: {
+    title: 'Dầu ăn dặm & Sữa',
+    items: [
+      { name: 'Dầu óc chó', emoji: '🌰' },
+      { name: 'Dầu oliu', emoji: '🫒' },
+      { name: 'Dầu mè', emoji: '🫒' },
+      { name: 'Dầu cá hồi', emoji: '🐟' },
+      { name: 'Sữa mẹ/CT', emoji: '🥛' }
+    ]
   }
 };
 
 export default function RecipeForm({ onSubmit, isLoading }) {
   const [ageMonths, setAgeMonths] = useState(7);
   const [feedingMethod, setFeedingMethod] = useState('Truyền thống');
+  const [mealType, setMealType] = useState('Bữa chính');
   const [selectedIngredients, setSelectedIngredients] = useState([
     'Thịt gà',
     'Bí đỏ',
@@ -62,6 +127,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
     onSubmit({
       age_months: Number(ageMonths),
       feeding_method: feedingMethod,
+      meal_type: mealType,
       available_ingredients: selectedIngredients,
       custom_ingredients: customIngredients
     });
@@ -72,6 +138,24 @@ export default function RecipeForm({ onSubmit, isLoading }) {
       onSubmit={handleSubmit}
       className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-brand-100 space-y-6"
     >
+      {/* Mascot Hero Banner */}
+      <div className="bg-gradient-to-r from-amber-50/80 via-brand-50/60 to-orange-50/80 border border-brand-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left shadow-xs">
+        <div className="relative shrink-0">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-400 to-amber-300 flex items-center justify-center text-3xl shadow-sm border border-white">
+            👶🍳
+          </div>
+          <span className="absolute -bottom-1 -right-1 text-sm bg-white rounded-full p-0.5 shadow-xs">✨</span>
+        </div>
+        <div className="space-y-0.5">
+          <h3 className="font-extrabold text-slate-800 text-sm sm:text-base leading-snug">
+            Cùng mẹ chuẩn bị bữa ăn dặm đầu đời tràn đầy dinh dưỡng & yêu thương
+          </h3>
+          <p className="text-xs text-slate-600">
+            BeChef đồng hành thiết kế thực đơn khoa học, độ thô chuẩn lứa tuổi và an toàn tuyệt đối.
+          </p>
+        </div>
+      </div>
+
       {/* 1. Month Selection: Slider & Input */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -137,7 +221,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         </div>
       </div>
 
-      {/* 2. Method Selector */}
+      {/* 2. Feeding Method Selector */}
       <div>
         <label className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2 mb-2.5">
           <UtensilsCrossed className="w-5 h-5 text-brand-500" />
@@ -158,7 +242,10 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 }`}
               >
                 <div className="font-bold text-[15px] text-slate-800 mb-1 flex items-center justify-between">
-                  <span>{method.label}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>{method.icon}</span>
+                    <span>{method.label}</span>
+                  </span>
                   {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#36BA34]"></span>}
                 </div>
                 <p className="text-xs sm:text-[13px] text-slate-500 leading-relaxed">{method.desc}</p>
@@ -168,7 +255,42 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         </div>
       </div>
 
-      {/* 3. Ingredient Multi-Select Categorized */}
+      {/* 3. Meal Type Selector */}
+      <div>
+        <label className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2 mb-2.5">
+          <Sun className="w-5 h-5 text-amber-500" />
+          <span>Phân loại bữa ăn:</span>
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {MEAL_TYPES.map((type) => {
+            const isSelected = mealType === type.id;
+            return (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => setMealType(type.id)}
+                aria-pressed={isSelected}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-500/20 shadow-xs'
+                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
+                }`}
+              >
+                <div className="font-bold text-[15px] text-slate-800 mb-0.5 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="text-lg">{type.icon}</span>
+                    <span>{type.label}</span>
+                  </span>
+                  {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#36BA34]"></span>}
+                </div>
+                <p className="text-xs text-slate-500 ml-7">{type.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. Ingredient Multi-Select Categorized with Emojis */}
       <div className="space-y-4">
         <label className="text-[15px] sm:text-base font-bold text-slate-800 block">
           Nguyên liệu mẹ sẵn có trong tủ lạnh:
@@ -181,19 +303,19 @@ export default function RecipeForm({ onSubmit, isLoading }) {
             </span>
             <div className="flex flex-wrap gap-2">
               {category.items.map((ingr) => {
-                const isSelected = selectedIngredients.includes(ingr);
+                const isSelected = selectedIngredients.includes(ingr.name);
                 return (
                   <button
-                    key={ingr}
+                    key={ingr.name}
                     type="button"
-                    onClick={() => toggleIngredient(ingr)}
-                    className={`px-3.5 py-2 rounded-xl text-[15px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                    onClick={() => toggleIngredient(ingr.name)}
+                    className={`px-3 py-1.5 rounded-xl text-[14px] sm:text-[15px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-brand-500 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-700 hover:bg-brand-100 hover:text-brand-800'
                     }`}
                   >
-                    <span>{ingr}</span>
+                    <span>{ingr.emoji} {ingr.name}</span>
                     {isSelected && <span className="text-xs leading-none font-bold">✓</span>}
                   </button>
                 );
@@ -203,7 +325,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         ))}
       </div>
 
-      {/* 4. Custom Ingredients Tag-input */}
+      {/* 5. Custom Ingredients Tag-input */}
       <div>
         <label htmlFor="custom-ingredient-input" className="text-xs sm:text-sm font-semibold text-slate-600 block mb-1.5">
           Nguyên liệu khác của bạn (nhập và bấm Thêm):
@@ -240,6 +362,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 key={item}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[15px] bg-brand-100 text-brand-800 font-medium"
               >
+                <span>🥗</span>
                 <span>{item}</span>
                 <button
                   type="button"
@@ -255,7 +378,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         )}
       </div>
 
-      {/* 5. Submit CTA button */}
+      {/* 6. Submit CTA button */}
       <div>
         <button
           type="submit"

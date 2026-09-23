@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Clock,
   ChefHat,
@@ -8,8 +8,13 @@ import {
   ShoppingBag,
   CheckCircle2,
   Maximize2,
-  Minimize2
+  Minimize2,
+  RefreshCw,
+  Download,
+  Flame,
+  Loader2
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 export default function RecipeCard({
   recipe,
@@ -18,10 +23,15 @@ export default function RecipeCard({
   isFocused = false,
   completedSteps,
   onToggleStep,
-  onClose
+  onClose,
+  onCookMode,
+  onRegenerateSingle,
+  isRegenerating = false
 }) {
   const [copied, setCopied] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [localCompletedSteps, setLocalCompletedSteps] = useState([]);
+  const cardRef = useRef(null);
 
   if (!recipe) return null;
 
@@ -57,7 +67,6 @@ export default function RecipeCard({
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(textToCopy);
       } else {
-        // Fallback for older browsers or test environments
         const textArea = document.createElement('textarea');
         textArea.value = textToCopy;
         textArea.style.position = 'fixed';
@@ -71,6 +80,25 @@ export default function RecipeCard({
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
       console.error('Failed to copy to clipboard', err);
+    }
+  };
+
+  const handleExportImage = async () => {
+    if (!cardRef.current) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = `${recipe.dish_name || 'cong-thuc-bechef'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Lỗi khi xuất ảnh công thức:', err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -88,13 +116,34 @@ export default function RecipeCard({
 
   return (
     <div
+      ref={cardRef}
       data-testid={`recipe-card-${index}`}
-      className={`bg-white transition-all duration-300 flex flex-col justify-between ${
+      className={`relative bg-white transition-all duration-300 flex flex-col justify-between ${
         isFocused
-          ? 'rounded-3xl shadow-none p-2 sm:p-4'
-          : 'rounded-3xl shadow-sm hover:shadow-md border border-brand-100/80 overflow-hidden group'
+          ? 'rounded-2xl shadow-none p-2 sm:p-4'
+          : 'rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 overflow-hidden group'
       }`}
     >
+      {/* Loading overlay when regenerating this single recipe */}
+      {isRegenerating && (
+        <div
+          data-testid={`card-regenerating-overlay-${index}`}
+          className="absolute inset-0 bg-white/85 backdrop-blur-xs z-20 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in duration-200"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-brand-600 animate-spin" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-800 text-sm sm:text-base">
+              Đang đổi món ăn dặm mới...
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              BeChef đang tinh chỉnh nguyên liệu và độ thô phù hợp
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner & Header */}
       <div className={isFocused ? 'p-4 sm:p-6 pb-2 sm:pb-3' : 'p-6 pb-4'}>
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -118,34 +167,36 @@ export default function RecipeCard({
             </span>
           </div>
 
-          {/* Zoom / Focus Button for card view */}
-          {onFocus && !isFocused && (
-            <button
-              type="button"
-              onClick={() => onFocus(recipe, index)}
-              aria-label="Xem chi tiết / Phóng to"
-              title="Xem chi tiết / Phóng to"
-              data-testid={`focus-btn-${index}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Maximize2 className="w-3.5 h-3.5 text-brand-500" />
-              <span>Phóng to</span>
-            </button>
-          )}
+          <div className="flex items-center gap-1.5">
+            {/* Zoom / Focus Button */}
+            {onFocus && !isFocused && (
+              <button
+                type="button"
+                onClick={() => onFocus(recipe, index)}
+                aria-label="Xem chi tiết / Phóng to"
+                title="Xem chi tiết / Phóng to"
+                data-testid={`focus-btn-${index}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-brand-500" />
+                <span className="hidden sm:inline">Phóng to</span>
+              </button>
+            )}
 
-          {/* Minimize button inside card if focused and onClose provided */}
-          {isFocused && onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Thu nhỏ / Trở lại 3 món"
-              title="Thu nhỏ / Trở lại 3 món"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Minimize2 className="w-4 h-4 text-slate-600" />
-              <span>Thu nhỏ / Trở lại 3 món</span>
-            </button>
-          )}
+            {/* Minimize button inside card if focused and onClose provided */}
+            {isFocused && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Thu nhỏ / Trở lại 3 món"
+                title="Thu nhỏ / Trở lại 3 món"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <Minimize2 className="w-4 h-4 text-slate-600" />
+                <span>Thu nhỏ / Trở lại 3 món</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <h3
@@ -380,7 +431,7 @@ export default function RecipeCard({
         </ol>
       </div>
 
-      {/* Pediatrician Tip & Actions */}
+      {/* Pediatrician Tip & Action Buttons */}
       <div
         className={`mt-auto space-y-3 ${
           isFocused ? 'p-4 sm:p-6 pt-2 sm:pt-3' : 'p-6 pt-3'
@@ -404,32 +455,83 @@ export default function RecipeCard({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={handleCopyShoppingList}
-          aria-label="Sao chép danh sách đi chợ"
-          className={`w-full rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.99] ${
-            isFocused ? 'py-3.5 px-5 text-sm sm:text-base' : 'py-2.5 px-4 text-xs'
-          } ${
-            copied
-              ? 'bg-emerald-600 text-white shadow-emerald-200'
-              : 'bg-slate-900 text-white hover:bg-brand-500'
-          }`}
-        >
-          {copied ? (
-            <>
-              <Check
-                className={isFocused ? 'w-5 h-5 text-white' : 'w-4 h-4 text-white'}
-              />
-              <span>Đã sao chép danh sách!</span>
-            </>
-          ) : (
-            <>
-              <Copy className={isFocused ? 'w-5 h-5' : 'w-4 h-4'} />
-              <span>Sao chép danh sách đi chợ</span>
-            </>
-          )}
-        </button>
+        {/* Feature Action Buttons Grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* "Bắt đầu nấu" button */}
+          <button
+            type="button"
+            onClick={() => onCookMode && onCookMode(recipe)}
+            aria-label="Bắt đầu nấu"
+            className="w-full py-2.5 px-3 rounded-2xl font-bold text-xs sm:text-sm bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+          >
+            <Flame className="w-4 h-4" />
+            <span>Bắt đầu nấu</span>
+          </button>
+
+          {/* 🔄 "Đổi món này" button */}
+          <button
+            type="button"
+            onClick={() => onRegenerateSingle && onRegenerateSingle(recipe.dish_name, index)}
+            disabled={isRegenerating}
+            aria-label="Đổi món này"
+            className={`w-full py-2.5 px-3 rounded-2xl font-semibold text-xs sm:text-sm border transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5 ${
+              isRegenerating
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+            <span>Đổi món này</span>
+          </button>
+        </div>
+
+        {/* Utility Actions: Copy & Save Image */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* "Lưu ảnh công thức" button */}
+          <button
+            type="button"
+            onClick={handleExportImage}
+            disabled={isExporting}
+            aria-label="Lưu ảnh công thức"
+            className="w-full py-2.5 px-3 rounded-2xl font-semibold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Đang xuất ảnh...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                <span>Lưu ảnh công thức</span>
+              </>
+            )}
+          </button>
+
+          {/* "Sao chép danh sách đi chợ" button */}
+          <button
+            type="button"
+            onClick={handleCopyShoppingList}
+            aria-label="Sao chép danh sách đi chợ"
+            className={`w-full py-2.5 px-3 rounded-2xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
+              copied
+                ? 'bg-emerald-600 text-white shadow-emerald-200'
+                : 'bg-slate-900 text-white hover:bg-brand-500'
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-white" />
+                <span>Đã sao chép danh sách!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Sao chép danh sách đi chợ</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
