@@ -44,8 +44,11 @@ export default function RecipeForm({ onSubmit, isLoading }) {
   const handleAddCustom = (e) => {
     e.preventDefault();
     const trimmed = customInput.trim();
-    if (trimmed && !customIngredients.includes(trimmed)) {
-      setCustomIngredients([...customIngredients, trimmed]);
+    if (trimmed) {
+      const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+      if (!customIngredients.includes(formatted)) {
+        setCustomIngredients([...customIngredients, formatted]);
+      }
       setCustomInput('');
     }
   };
@@ -67,13 +70,13 @@ export default function RecipeForm({ onSubmit, isLoading }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6"
+      className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-brand-100 space-y-6"
     >
       {/* 1. Month Selection: Slider & Input */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label htmlFor="age-input" className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <Baby className="w-4 h-4 text-orange-600" />
+          <label htmlFor="age-input" className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2">
+            <Baby className="w-5 h-5 text-brand-500" />
             <span>Độ tuổi của bé (tháng):</span>
           </label>
           <div className="flex items-center gap-1">
@@ -84,9 +87,9 @@ export default function RecipeForm({ onSubmit, isLoading }) {
               max="24"
               value={ageMonths}
               onChange={(e) => setAgeMonths(Math.max(6, Math.min(24, Number(e.target.value) || 6)))}
-              className="w-16 px-2.5 py-1 text-center font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-16 px-2.5 py-1 text-center font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 text-[15px]"
             />
-            <span className="text-xs font-semibold text-slate-500">tháng</span>
+            <span className="text-xs sm:text-sm font-semibold text-slate-500">tháng</span>
           </div>
         </div>
 
@@ -98,10 +101,10 @@ export default function RecipeForm({ onSubmit, isLoading }) {
           aria-label="Thanh trượt chọn tháng tuổi của bé"
           value={ageMonths}
           onChange={(e) => setAgeMonths(Number(e.target.value))}
-          className="w-full h-2.5 bg-orange-100 rounded-lg appearance-none cursor-pointer accent-orange-600"
+          className="w-full h-2.5 bg-brand-100 rounded-lg appearance-none cursor-pointer accent-[#36BA34]"
         />
 
-        <div className="flex justify-between text-[11px] text-slate-600 mt-1 font-medium">
+        <div className="flex justify-between text-xs text-slate-600 mt-1.5 font-medium">
           <span>6 tháng</span>
           <span>9 tháng</span>
           <span>12 tháng</span>
@@ -110,7 +113,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         </div>
 
         {/* Pediatric Texture & Seasoning Notice */}
-        <div className="mt-3 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-900 flex items-start gap-2.5">
+        <div className="mt-3 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-xs sm:text-[13px] text-amber-900 flex items-start gap-2.5 leading-relaxed">
           <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-semibold">
@@ -126,7 +129,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
               </span>
             </p>
             {ageMonths < 12 && (
-              <p className="text-[11px] text-rose-700 font-medium">
+              <p className="text-[12px] text-rose-700 font-medium">
                 * Khuyến nghị y khoa: Tuyệt đối KHÔNG dùng mật ong, muối, đường, mắm, bột ngọt/mì chính cho trẻ dưới 1 tuổi.
               </p>
             )}
@@ -136,8 +139,8 @@ export default function RecipeForm({ onSubmit, isLoading }) {
 
       {/* 2. Method Selector */}
       <div>
-        <label className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-2.5">
-          <UtensilsCrossed className="w-4 h-4 text-orange-600" />
+        <label className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2 mb-2.5">
+          <UtensilsCrossed className="w-5 h-5 text-brand-500" />
           <span>Phương pháp ăn dặm:</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -148,17 +151,17 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 key={method.id}
                 type="button"
                 onClick={() => setFeedingMethod(method.id)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-orange-500 bg-orange-50/70 ring-2 ring-orange-500/20 shadow-xs'
-                    : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
+                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-500/20 shadow-xs'
+                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
                 }`}
               >
-                <div className="font-bold text-xs sm:text-sm text-slate-800 mb-0.5 flex items-center justify-between">
+                <div className="font-bold text-[15px] text-slate-800 mb-1 flex items-center justify-between">
                   <span>{method.label}</span>
-                  {isSelected && <span className="w-2 h-2 rounded-full bg-orange-600"></span>}
+                  {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#36BA34]"></span>}
                 </div>
-                <p className="text-[11px] text-slate-500 leading-snug">{method.desc}</p>
+                <p className="text-xs sm:text-[13px] text-slate-500 leading-relaxed">{method.desc}</p>
               </button>
             );
           })}
@@ -167,13 +170,13 @@ export default function RecipeForm({ onSubmit, isLoading }) {
 
       {/* 3. Ingredient Multi-Select Categorized */}
       <div className="space-y-4">
-        <label className="text-sm font-bold text-slate-800 block">
+        <label className="text-[15px] sm:text-base font-bold text-slate-800 block">
           Nguyên liệu mẹ sẵn có trong tủ lạnh:
         </label>
 
         {Object.entries(INGREDIENT_CATEGORIES).map(([catKey, category]) => (
           <div key={catKey} className="space-y-2">
-            <span className="text-xs font-semibold text-slate-500 block">
+            <span className="text-[13px] font-semibold text-slate-600 block">
               {category.title}
             </span>
             <div className="flex flex-wrap gap-2">
@@ -184,14 +187,14 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                     key={ingr}
                     type="button"
                     onClick={() => toggleIngredient(ingr)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl text-[15px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                       isSelected
-                        ? 'bg-orange-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-orange-100 hover:text-orange-800'
+                        ? 'bg-brand-500 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-brand-100 hover:text-brand-800'
                     }`}
                   >
                     <span>{ingr}</span>
-                    {isSelected && <span className="text-[10px] leading-none font-bold">✓</span>}
+                    {isSelected && <span className="text-xs leading-none font-bold">✓</span>}
                   </button>
                 );
               })}
@@ -202,7 +205,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
 
       {/* 4. Custom Ingredients Tag-input */}
       <div>
-        <label htmlFor="custom-ingredient-input" className="text-xs font-semibold text-slate-500 block mb-1.5">
+        <label htmlFor="custom-ingredient-input" className="text-xs sm:text-sm font-semibold text-slate-600 block mb-1.5">
           Nguyên liệu khác của bạn (nhập và bấm Thêm):
         </label>
         <div className="flex gap-2">
@@ -218,32 +221,33 @@ export default function RecipeForm({ onSubmit, isLoading }) {
               }
             }}
             placeholder="Ví dụ: Khoai lang, cá chép, cải ngọt..."
-            className="flex-1 px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            className="flex-1 px-3.5 py-2.5 text-[15px] leading-normal bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
           />
           <button
             type="button"
             onClick={handleAddCustom}
-            className="px-4 py-2 bg-slate-100 hover:bg-orange-100 text-slate-700 hover:text-orange-700 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+            className="px-4 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-700 text-[15px] font-semibold rounded-xl border border-brand-200 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>Thêm</span>
           </button>
         </div>
 
         {customIngredients.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2.5">
+          <div className="flex flex-wrap gap-2 mt-2.5">
             {customIngredients.map((item) => (
               <span
                 key={item}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-orange-100 text-orange-800 font-medium"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[15px] bg-brand-100 text-brand-800 font-medium"
               >
                 <span>{item}</span>
                 <button
                   type="button"
                   onClick={() => removeCustomIngredient(item)}
                   className="hover:text-rose-600 focus:outline-none cursor-pointer"
+                  aria-label={`Xoá ${item}`}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </span>
             ))}
@@ -256,10 +260,10 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         <button
           type="submit"
           disabled={isLoading}
-          className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm sm:text-base text-white flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 transition-all cursor-pointer ${
+          className={`w-full py-4 px-6 rounded-2xl font-bold text-base sm:text-lg text-white flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all cursor-pointer ${
             isLoading
-              ? 'bg-orange-400 cursor-not-allowed opacity-90'
-              : 'bg-orange-600 hover:bg-orange-500 active:scale-[0.99]'
+              ? 'bg-brand-400 cursor-not-allowed opacity-90'
+              : 'bg-brand-500 hover:bg-brand-600 active:scale-[0.99]'
           }`}
         >
           {isLoading ? (

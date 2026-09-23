@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '../client/src/App';
 import * as recipeApi from '../client/src/api/recipeApi';
 
@@ -60,6 +60,39 @@ const mockRecipesData = {
   ]
 };
 
+const mockRecipesWithSafety = {
+  safety_analysis: {
+    overall_verdict: 'Thực đơn phù hợp và an toàn cao cho bé 7 tháng tuổi, cân đối các nhóm chất.',
+    ingredient_evaluations: [
+      {
+        ingredient: 'thịt gà',
+        status: 'SAFE',
+        badge_text: 'Phù hợp / An toàn',
+        medical_note: 'Nguồn đạm lành tính, ít gây dị ứng, phù hợp cho bé bắt đầu ăn dặm.'
+      },
+      {
+        ingredient: 'bí đỏ',
+        status: 'SAFE',
+        badge_text: 'Phù hợp / An toàn',
+        medical_note: 'Giàu vitamin A và beta-carotene, dễ tiêu hoá.'
+      },
+      {
+        ingredient: 'mật ong',
+        status: 'UNSAFE',
+        badge_text: 'Cấm dùng / Nguy hiểm',
+        medical_note: 'Tuyệt đối cấm dùng cho trẻ dưới 1 tuổi vì nguy cơ ngộ độc Clostridium botulinum.'
+      },
+      {
+        ingredient: 'hải sản có vỏ',
+        status: 'CAUTION',
+        badge_text: 'Cần lưu ý',
+        medical_note: 'Nguy cơ dị ứng cao, cần thử dị ứng 3 ngày liên tiếp.'
+      }
+    ]
+  },
+  recipes: mockRecipesData.recipes
+};
+
 describe('Frontend UI: App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -97,6 +130,62 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(addButton);
 
     expect(screen.getByText('Khoai tây')).toBeInTheDocument();
+  });
+
+  test('auto-capitalizes first letter of custom ingredients (e.g. "khoai lang" -> "Khoai lang")', () => {
+    render(<App />);
+
+    const customInput = screen.getByPlaceholderText(/Ví dụ: Khoai lang/i);
+    const addButton = screen.getByRole('button', { name: /Thêm/i });
+
+    fireEvent.change(customInput, { target: { value: 'khoai lang' } });
+    fireEvent.click(addButton);
+
+    // Assert capitalized chip is displayed and lowercase is not
+    expect(screen.getByText('Khoai lang')).toBeInTheDocument();
+    expect(screen.queryByText('khoai lang')).not.toBeInTheDocument();
+  });
+
+  test('renders SafetyAnalysisBox with overall verdict, status badges, and pediatric medical notes', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesWithSafety);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Báo cáo thẩm định an toàn dinh dưỡng')).toBeInTheDocument();
+    });
+
+    const safetyBox = screen.getByTestId('safety-analysis-box');
+
+    // Check overall verdict
+    expect(
+      within(safetyBox).getByText(/Thực đơn phù hợp và an toàn cao cho bé 7 tháng tuổi/i)
+    ).toBeInTheDocument();
+
+    // Check capitalized ingredient names inside safetyBox
+    expect(within(safetyBox).getByText('Thịt gà')).toBeInTheDocument();
+    expect(within(safetyBox).getByText('Bí đỏ')).toBeInTheDocument();
+    expect(within(safetyBox).getByText('Mật ong')).toBeInTheDocument();
+    expect(within(safetyBox).getByText('Hải sản có vỏ')).toBeInTheDocument();
+
+    // Check status badges inside safetyBox
+    expect(within(safetyBox).getAllByText('Phù hợp / An toàn').length).toBe(2);
+    expect(within(safetyBox).getByText('Cấm dùng / Nguy hiểm')).toBeInTheDocument();
+    expect(within(safetyBox).getByText('Cần lưu ý')).toBeInTheDocument();
+
+    // Check pediatric medical notes inside safetyBox
+    expect(
+      within(safetyBox).getByText(/Nguồn đạm lành tính, ít gây dị ứng/i)
+    ).toBeInTheDocument();
+    expect(
+      within(safetyBox).getByText(/Tuyệt đối cấm dùng cho trẻ dưới 1 tuổi vì nguy cơ ngộ độc/i)
+    ).toBeInTheDocument();
+    expect(
+      within(safetyBox).getByText(/Nguy cơ dị ứng cao, cần thử dị ứng 3 ngày liên tiếp/i)
+    ).toBeInTheDocument();
   });
 
   test('submits form, shows loading state, and renders 3 recipe flashcards', async () => {

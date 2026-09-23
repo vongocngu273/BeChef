@@ -43,11 +43,11 @@ export default function RecipeFocusModal({
         }
       }}
     >
-      <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col border border-orange-100">
+      <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col border border-brand-100">
         {/* Sticky Modal Header */}
-        <div className="bg-white/95 backdrop-blur-sm border-b border-orange-100 px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 shrink-0">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-brand-100 px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-xs">
+            <span className="w-8 h-8 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shadow-xs">
               <Sparkles className="w-4 h-4" />
             </span>
             <div>
@@ -65,7 +65,7 @@ export default function RecipeFocusModal({
             onClick={onClose}
             aria-label="Thu nhỏ / Trở lại 3 món"
             title="Thu nhỏ / Trở lại 3 món"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-orange-50 hover:text-orange-700 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-95"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-95"
           >
             <Minimize2 className="w-4 h-4" />
             <span className="hidden sm:inline">Thu nhỏ / Trở lại 3 món</span>
@@ -75,7 +75,7 @@ export default function RecipeFocusModal({
         </div>
 
         {/* Scrollable Focus View Body */}
-        <div className="overflow-y-auto flex-1 p-2 sm:p-4 bg-orange-50/20">
+        <div className="overflow-y-auto flex-1 p-2 sm:p-4 bg-brand-50/10">
           <RecipeCard
             recipe={recipe}
             index={index}

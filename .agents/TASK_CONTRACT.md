@@ -1,22 +1,66 @@
-# TASK CONTRACT: Brand Standards & Author Attribution ("Ngự Võ")
+# TASK CONTRACT: RELEASE v1.1.0 - UI Refresh, Pediatric Safety Analyzer & Deployment
 
-## Feature Overview
-- **Feature Name**: `feat/brand-standards-author-ngu-vo`
-- **Goal**: Implement proper brand identity standards and credit the author **Ngự Võ** across client UI, HTML metadata, API service information, package manifests, and project documentation.
+## 1. Goal & Scope
+Upgrade BeChef UI with `Be Vietnam Pro` typography, `#36BA34` primary green branding, automatic Vietnamese ingredient capitalization, and new AI Pediatric Safety & Suitability Analyzer (`safety_analysis` block) in both Backend API and Frontend UI.
 
-## Acceptance Criteria
-1. **Author Credit in UI**:
-   - `client/src/App.jsx` footer displays clearly: `© 2026 BeChef • Tác giả: Ngự Võ`.
-   - Responsive and elegant typography matching brand palette.
-2. **Metadata & Manifests**:
-   - `client/index.html` includes `<meta name="author" content="Ngự Võ">` and proper SEO meta description.
-   - `package.json` and `client/package.json` specify `"author": "Ngự Võ"`.
-3. **Backend API**:
-   - `GET /api/health` endpoint includes `author: "Ngự Võ"`.
-4. **Project Documentation**:
-   - `README.md` credits author "Ngự Võ" in header and contact/feedback section.
+## 2. Shared Frozen API Contract (`POST /api/generate-recipes`)
 
-## Ownership
-- **Backend Specialist**: `server.js`, `package.json`.
-- **Frontend Specialist**: `client/index.html`, `client/package.json`, `client/src/App.jsx`.
-- **QA Specialist**: Regression test suite & build check.
+### Request Payload:
+```json
+{
+  "age_months": 8,
+  "feeding_method": "Truyền thống",
+  "available_ingredients": ["Thịt gà", "Bí đỏ"],
+  "custom_ingredients": ["Khoai lang"]
+}
+```
+
+### Response Payload:
+```json
+{
+  "safety_analysis": {
+    "overall_verdict": "string",
+    "ingredient_evaluations": [
+      {
+        "ingredient": "string",
+        "status": "SAFE" | "CAUTION" | "UNSAFE",
+        "badge_text": "string",
+        "medical_note": "string"
+      }
+    ]
+  },
+  "recipes": [
+    {
+      "dish_name": "string",
+      "suitable_age_range": "string",
+      "feeding_method": "string",
+      "texture_description": "string",
+      "yield_portion": "string",
+      "prep_time_minutes": 10,
+      "cook_time_minutes": 20,
+      "difficulty": "Dễ",
+      "available_ingredients_used": [{ "name": "string", "amount": "string" }],
+      "missing_ingredients_needed": [{ "name": "string", "amount": "string" }],
+      "cooking_steps": ["string"],
+      "pediatrician_tip": "string"
+    }
+  ]
+}
+```
+
+## 3. Sub-Agent Responsibilities
+- **Backend Specialist**:
+  - `utils/textFormatter.js`: `capitalizeIngredient(str)`.
+  - `services/geminiService.js`: Update `RECIPE_SCHEMA` to include `safety_analysis`, update system prompt, update fallback recipes to include `safety_analysis`.
+  - `tests/recipe.test.js`: Add schema verification and safety analysis tests.
+- **Frontend Specialist**:
+  - `client/index.html`: Import `Be Vietnam Pro` from Google Fonts.
+  - `client/tailwind.config.js`: Set `brand-500: #36BA34`, font family `Be Vietnam Pro`.
+  - `client/src/components/RecipeForm.jsx`: Auto-capitalize input chips.
+  - `client/src/components/SafetyAnalysisBox.jsx`: Render the pediatric evaluation box above recipes.
+  - `client/src/App.jsx`: State handling and layout integration.
+  - `tests/App.test.jsx`: Assert font, capitalization, and safety analysis box rendering.
+- **QA Specialist**:
+  - Independent validation, 100% test pass across all suites, build check.
+- **Orchestrator**:
+  - Coordinate parallel subagents, integrate changes, commit and push to remote.

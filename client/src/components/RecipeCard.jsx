@@ -92,7 +92,7 @@ export default function RecipeCard({
       className={`bg-white transition-all duration-300 flex flex-col justify-between ${
         isFocused
           ? 'rounded-3xl shadow-none p-2 sm:p-4'
-          : 'rounded-3xl shadow-sm hover:shadow-md border border-orange-100 overflow-hidden group'
+          : 'rounded-3xl shadow-sm hover:shadow-md border border-brand-100/80 overflow-hidden group'
       }`}
     >
       {/* Top Banner & Header */}
@@ -100,12 +100,12 @@ export default function RecipeCard({
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full font-semibold bg-orange-100/80 text-orange-800 ${
+              className={`inline-flex items-center gap-1.5 rounded-full font-semibold bg-brand-100/80 text-brand-800 ${
                 isFocused ? 'px-3.5 py-1.5 text-sm' : 'px-3 py-1 text-xs'
               }`}
             >
               <ChefHat
-                className={`${isFocused ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-orange-600`}
+                className={`${isFocused ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-brand-500`}
               />
               {recipe.suitable_age_range || 'Phù hợp'}
             </span>
@@ -126,9 +126,9 @@ export default function RecipeCard({
               aria-label="Xem chi tiết / Phóng to"
               title="Xem chi tiết / Phóng to"
               data-testid={`focus-btn-${index}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 hover:text-orange-800 border border-orange-200 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-all cursor-pointer shadow-xs active:scale-95"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-orange-600" />
+              <Maximize2 className="w-3.5 h-3.5 text-brand-500" />
               <span>Phóng to</span>
             </button>
           )}
@@ -149,7 +149,7 @@ export default function RecipeCard({
         </div>
 
         <h3
-          className={`font-bold text-slate-800 group-hover:text-orange-600 transition-colors ${
+          className={`font-bold text-slate-800 group-hover:text-brand-600 transition-colors ${
             isFocused
               ? 'text-2xl sm:text-3xl tracking-tight text-slate-900'
               : 'text-xl line-clamp-2'
@@ -164,7 +164,7 @@ export default function RecipeCard({
             isFocused ? 'text-sm' : 'text-xs'
           }`}
         >
-          <span className="font-semibold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-md">
+          <span className="font-semibold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-md">
             {recipe.feeding_method || 'Ăn dặm'}
           </span>
           {recipe.yield_portion && (
@@ -349,14 +349,14 @@ export default function RecipeCard({
                 className={`flex items-start gap-3 p-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 border ${
                   isCompleted
                     ? 'opacity-50 text-slate-400 line-through bg-slate-50/80 border-slate-200/80'
-                    : 'bg-white hover:bg-orange-50/40 border-slate-100 hover:border-orange-200 text-slate-700 shadow-xs'
+                    : 'bg-white hover:bg-brand-50/40 border-slate-100 hover:border-brand-200 text-slate-700 shadow-xs'
                 }`}
               >
                 <span
                   className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 font-bold text-xs transition-colors mt-0.5 ${
                     isCompleted
                       ? 'bg-emerald-500 text-white'
-                      : 'bg-orange-100 text-orange-700'
+                      : 'bg-brand-100 text-brand-700'
                   }`}
                 >
                   {isCompleted ? (
@@ -413,7 +413,7 @@ export default function RecipeCard({
           } ${
             copied
               ? 'bg-emerald-600 text-white shadow-emerald-200'
-              : 'bg-slate-900 text-white hover:bg-orange-600'
+              : 'bg-slate-900 text-white hover:bg-brand-500'
           }`}
         >
           {copied ? (

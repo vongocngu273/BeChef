@@ -6,18 +6,25 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Be Vietnam Pro"', 'sans-serif'],
+      },
       colors: {
         brand: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-        }
-      }
+          50: '#f0fdf0',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#36BA34',
+          600: '#2ea12c',
+          700: '#237d22',
+        },
+        background: '#F8FAF8',
+      },
+      backgroundColor: {
+        background: '#F8FAF8',
+      },
     },
   },
   plugins: [],

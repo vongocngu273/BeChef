@@ -1,10 +1,27 @@
 const request = require('supertest');
 const app = require('../server');
 const geminiService = require('../services/geminiService');
+const { capitalizeIngredient } = require('../utils/textFormatter');
 
 describe('Backend API: POST /api/generate-recipes', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+  });
+
+  describe('Text Formatter Utility: capitalizeIngredient', () => {
+    test('should trim and capitalize the first letter of Vietnamese ingredients', () => {
+      expect(capitalizeIngredient('khoai lang')).toBe('Khoai lang');
+      expect(capitalizeIngredient('thịt bò')).toBe('Thịt bò');
+      expect(capitalizeIngredient('  bí đỏ  ')).toBe('Bí đỏ');
+      expect(capitalizeIngredient('ớt chuông')).toBe('Ớt chuông');
+    });
+
+    test('should handle edge cases safely', () => {
+      expect(capitalizeIngredient('')).toBe('');
+      expect(capitalizeIngredient(null)).toBe('');
+      expect(capitalizeIngredient(undefined)).toBe('');
+      expect(capitalizeIngredient(123)).toBe('');
+    });
   });
 
   describe('Payload Boundary Validations', () => {
@@ -74,8 +91,25 @@ describe('Backend API: POST /api/generate-recipes', () => {
   });
 
   describe('Schema Integrity & Mock Gemini Response', () => {
-    test('should return 3 valid recipes matching the strict schema', async () => {
-      const mockRecipes = {
+    test('should return safety_analysis and 3 valid recipes matching the strict schema', async () => {
+      const mockApiResponse = {
+        safety_analysis: {
+          overall_verdict: 'Tất cả các nguyên liệu đều tuyệt đối an toàn và giàu dưỡng chất phù hợp cho bé 7 tháng tuổi.',
+          ingredient_evaluations: [
+            {
+              ingredient: 'Thịt gà',
+              status: 'SAFE',
+              badge_text: 'Phù hợp',
+              medical_note: 'Nguồn đạm nạc mềm, giàu kẽm sinh học và sắt dễ hấp thu.'
+            },
+            {
+              ingredient: 'Bí đỏ',
+              status: 'SAFE',
+              badge_text: 'Phù hợp',
+              medical_note: 'Giàu beta-carotene và chất xơ hòa tan hỗ trợ tiêu hóa.'
+            }
+          ]
+        },
         recipes: [
           {
             dish_name: 'Cháo gà bí đỏ mềm mịn',
@@ -139,7 +173,7 @@ describe('Backend API: POST /api/generate-recipes', () => {
         ]
       };
 
-      jest.spyOn(geminiService, 'generateBabyRecipes').mockResolvedValueOnce(mockRecipes);
+      jest.spyOn(geminiService, 'generateBabyRecipes').mockResolvedValueOnce(mockApiResponse);
 
       const res = await request(app)
         .post('/api/generate-recipes')
@@ -150,6 +184,22 @@ describe('Backend API: POST /api/generate-recipes', () => {
         });
 
       expect(res.status).toBe(200);
+
+      // Verify safety_analysis structure
+      expect(res.body).toHaveProperty('safety_analysis');
+      expect(res.body.safety_analysis).toHaveProperty('overall_verdict');
+      expect(typeof res.body.safety_analysis.overall_verdict).toBe('string');
+      expect(res.body.safety_analysis).toHaveProperty('ingredient_evaluations');
+      expect(Array.isArray(res.body.safety_analysis.ingredient_evaluations)).toBe(true);
+      expect(res.body.safety_analysis.ingredient_evaluations).toHaveLength(2);
+
+      const evalItem = res.body.safety_analysis.ingredient_evaluations[0];
+      expect(evalItem).toHaveProperty('ingredient', 'Thịt gà');
+      expect(evalItem).toHaveProperty('status', 'SAFE');
+      expect(evalItem).toHaveProperty('badge_text', 'Phù hợp');
+      expect(evalItem).toHaveProperty('medical_note');
+
+      // Verify recipes structure
       expect(res.body).toHaveProperty('recipes');
       expect(res.body.recipes).toHaveLength(3);
 
@@ -267,18 +317,144 @@ describe('Backend API: POST /api/generate-recipes', () => {
     });
   });
 
-  describe('Fallback Generator Reliability', () => {
-    test('generateFallbackRecipes should return 3 safe recipes for age 6 months', () => {
-      const result = geminiService.generateFallbackRecipes(6, 'Truyền thống', ['Bí đỏ', 'Thịt gà'], []);
+  describe('Fallback Generator Reliability & Safety Analysis', () => {
+    test('generateFallbackRecipes should return safety_analysis and 3 safe recipes for age 6 months', () => {
+      const result = geminiService.generateFallbackRecipes(6, 'Truyền thống', ['bí đỏ', 'thịt gà'], []);
+
+      // Verify safety_analysis block
+      expect(result).toHaveProperty('safety_analysis');
+      expect(result.safety_analysis.overall_verdict).toContain('an toàn');
+      expect(result.safety_analysis.ingredient_evaluations).toHaveLength(2);
+
+      const bidoEval = result.safety_analysis.ingredient_evaluations.find(e => e.ingredient === 'Bí đỏ');
+      expect(bidoEval).toBeDefined();
+      expect(bidoEval.status).toBe('SAFE');
+      expect(bidoEval.badge_text).toBe('Phù hợp');
+      expect(bidoEval.medical_note).toBeTruthy();
+
+      const gaEval = result.safety_analysis.ingredient_evaluations.find(e => e.ingredient === 'Thịt gà');
+      expect(gaEval).toBeDefined();
+      expect(gaEval.status).toBe('SAFE');
+      expect(gaEval.badge_text).toBe('Phù hợp');
+
+      // Verify recipes
       expect(result.recipes).toHaveLength(3);
       expect(result.recipes[0].texture_description).toContain('1:10');
       expect(() => geminiService.validatePediatricSafety(result.recipes, 6)).not.toThrow();
     });
 
-    test('generateFallbackRecipes should return 3 safe recipes for age 18 months', () => {
+    test('generateFallbackRecipes should evaluate forbidden ingredients as UNSAFE for age < 12m and exclude them from recipes', () => {
+      const forbiddenInputs = ['muối', 'mật ong', 'nước mắm', 'đường', 'bột ngọt', 'hạt nêm'];
+      const safeInputs = ['thịt bò'];
+
+      const result = geminiService.generateFallbackRecipes(8, 'Truyền thống', forbiddenInputs, safeInputs);
+
+      // Verify overall verdict warns parent
+      expect(result.safety_analysis.overall_verdict).toMatch(/cảnh báo|nguy hại|loại bỏ/i);
+
+      // Verify each forbidden ingredient is evaluated as UNSAFE with "Cấm dùng"
+      const evaluations = result.safety_analysis.ingredient_evaluations;
+
+      const saltEval = evaluations.find(e => e.ingredient === 'Muối');
+      expect(saltEval).toBeDefined();
+      expect(saltEval.status).toBe('UNSAFE');
+      expect(saltEval.badge_text).toBe('Cấm dùng');
+      expect(saltEval.medical_note).toMatch(/thận|điện giải/i);
+
+      const honeyEval = evaluations.find(e => e.ingredient === 'Mật ong');
+      expect(honeyEval).toBeDefined();
+      expect(honeyEval.status).toBe('UNSAFE');
+      expect(honeyEval.badge_text).toBe('Cấm dùng');
+      expect(honeyEval.medical_note).toMatch(/botulism/i);
+
+      const fishSauceEval = evaluations.find(e => e.ingredient === 'Nước mắm');
+      expect(fishSauceEval).toBeDefined();
+      expect(fishSauceEval.status).toBe('UNSAFE');
+      expect(fishSauceEval.badge_text).toBe('Cấm dùng');
+
+      const sugarEval = evaluations.find(e => e.ingredient === 'Đường');
+      expect(sugarEval).toBeDefined();
+      expect(sugarEval.status).toBe('UNSAFE');
+      expect(sugarEval.badge_text).toBe('Cấm dùng');
+
+      // Verify safe ingredient is SAFE
+      const beefEval = evaluations.find(e => e.ingredient === 'Thịt bò');
+      expect(beefEval).toBeDefined();
+      expect(beefEval.status).toBe('SAFE');
+      expect(beefEval.badge_text).toBe('Phù hợp');
+
+      // Crucial: generated recipes must NOT use any forbidden ingredients
+      for (const recipe of result.recipes) {
+        const ingredients = [
+          ...recipe.available_ingredients_used,
+          ...recipe.missing_ingredients_needed
+        ].map(i => i.name.toLowerCase());
+        const steps = recipe.cooking_steps.join(' ').toLowerCase();
+
+        for (const forbidden of ['muối', 'mật ong', 'nước mắm', 'đường', 'bột ngọt', 'hạt nêm']) {
+          expect(ingredients.some(name => name.includes(forbidden))).toBe(false);
+          expect(steps.includes(forbidden)).toBe(false);
+        }
+      }
+
+      // validatePediatricSafety must pass cleanly
+      expect(() => geminiService.validatePediatricSafety(result.recipes, 8)).not.toThrow();
+    });
+
+    test('generateFallbackRecipes should return safe recipes for age 18 months', () => {
       const result = geminiService.generateFallbackRecipes(18, 'BLW', ['Thịt bò'], []);
       expect(result.recipes).toHaveLength(3);
       expect(result.recipes[0].texture_description).toContain('Cơm nát');
+      expect(result.safety_analysis.ingredient_evaluations[0].status).toBe('SAFE');
+    });
+  });
+
+  describe('Integration: POST /api/generate-recipes with Safety Analyzer in Fallback Mode', () => {
+    test('should return 200 with safety_analysis and exclude dangerous ingredients', async () => {
+      const originalKey = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = 'mock_key';
+
+      try {
+        const res = await request(app)
+          .post('/api/generate-recipes')
+          .send({
+            age_months: 8,
+            feeding_method: 'Truyền thống',
+            available_ingredients: ['muối', 'thịt gà'],
+            custom_ingredients: ['khoai lang']
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('safety_analysis');
+        expect(res.body).toHaveProperty('recipes');
+
+        const { ingredient_evaluations, overall_verdict } = res.body.safety_analysis;
+        expect(overall_verdict).toBeTruthy();
+
+        const saltEval = ingredient_evaluations.find(e => e.ingredient === 'Muối');
+        expect(saltEval).toBeDefined();
+        expect(saltEval.status).toBe('UNSAFE');
+        expect(saltEval.badge_text).toBe('Cấm dùng');
+
+        const chickenEval = ingredient_evaluations.find(e => e.ingredient === 'Thịt gà');
+        expect(chickenEval).toBeDefined();
+        expect(chickenEval.status).toBe('SAFE');
+        expect(chickenEval.badge_text).toBe('Phù hợp');
+
+        const potatoEval = ingredient_evaluations.find(e => e.ingredient === 'Khoai lang');
+        expect(potatoEval).toBeDefined();
+        expect(potatoEval.status).toBe('SAFE');
+        expect(potatoEval.badge_text).toBe('Phù hợp');
+
+        // Recipes must contain only safe items
+        expect(res.body.recipes).toHaveLength(3);
+        for (const recipe of res.body.recipes) {
+          const ingrNames = recipe.available_ingredients_used.map(i => i.name.toLowerCase());
+          expect(ingrNames).not.toContain('muối');
+        }
+      } finally {
+        process.env.GEMINI_API_KEY = originalKey;
+      }
     });
   });
 });
