@@ -8,7 +8,7 @@ export default function HeroBanner() {
     >
       {/* Crisp Vector SVG Illustration: Baby Chef with cute toque, smile, spoon, and steaming pot */}
       <div className="relative shrink-0 flex items-center justify-center">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-amber-100 via-orange-50 to-emerald-100 flex items-center justify-center shadow-xs border border-white/80 p-1">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-amber-200 via-emerald-100 to-brand-100 flex items-center justify-center shadow-xs border-2 border-white p-1">
           <svg
             viewBox="0 0 100 100"
             className="w-full h-full drop-shadow-sm"

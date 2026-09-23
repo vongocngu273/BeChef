@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Sliders,
-  Settings2
+  Settings2,
+  Loader2
 } from 'lucide-react';
 
 export default function CookModeModal({
@@ -20,6 +21,7 @@ export default function CookModeModal({
 }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
 
   // Audio configuration state
@@ -27,7 +29,9 @@ export default function CookModeModal({
   const [speed, setSpeed] = useState(1.0);
   const [pitch, setPitch] = useState(1.0);
   const [volume, setVolume] = useState(100);
-  const [availableVoices, setAvailableVoices] = useState([]);
+
+  const audioRef = useRef(null);
+  const activeAudioUrlRef = useRef(null);
 
   const steps = recipe?.cooking_steps || [];
   const totalSteps = steps.length;
@@ -35,100 +39,87 @@ export default function CookModeModal({
   const cleanStepText = currentStep.replace(/^Bước\s*\d+:\s*/i, '');
   const isCurrentStepDone = completedSteps.includes(currentStepIndex);
 
-  // Load and listen to speech synthesis voices
-  useEffect(() => {
-    const updateVoices = () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.getVoices) {
-        const voices = window.speechSynthesis.getVoices() || [];
-        setAvailableVoices(voices);
-      }
-    };
-
-    updateVoices();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
-
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, []);
-
-  // Stop speech when closing or unmounting
-  useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
   // Stop voice playback cleanly
   const stopVoice = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    if (activeAudioUrlRef.current) {
+      URL.revokeObjectURL(activeAudioUrlRef.current);
+      activeAudioUrlRef.current = null;
     }
     setIsPlayingVoice(false);
+    setIsAudioLoading(false);
   };
 
-  // Find best matched voice in browser
-  const getSelectedVoice = () => {
-    if (!availableVoices || availableVoices.length === 0) return null;
+  // Stop audio when closing or unmounting
+  useEffect(() => {
+    return () => {
+      stopVoice();
+    };
+  }, []);
 
-    if (selectedVoiceEngine === 'vi-VN-HoaiMyNeural') {
-      const match = availableVoices.find(
-        (v) =>
-          v.name.includes('HoaiMy') ||
-          v.voiceURI?.includes('HoaiMy') ||
-          v.name.includes('Hoài My')
-      );
-      if (match) return match;
+  // Update volume dynamically on active audio instance
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.max(0, Math.min(1, Number(volume) / 100));
     }
+  }, [volume]);
 
-    if (selectedVoiceEngine === 'vi-VN-NamMinhNeural') {
-      const match = availableVoices.find(
-        (v) =>
-          v.name.includes('NamMinh') ||
-          v.voiceURI?.includes('NamMinh') ||
-          v.name.includes('Nam Minh')
-      );
-      if (match) return match;
-    }
-
-    // Fallback: any voice for Vietnamese
-    const viVoice = availableVoices.find(
-      (v) => v.lang === 'vi-VN' || v.lang?.toLowerCase().startsWith('vi')
-    );
-    return viVoice || null;
-  };
-
-  const handleToggleVoice = () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  const handleToggleVoice = async () => {
+    if (isPlayingVoice || isAudioLoading) {
+      stopVoice();
       return;
     }
 
-    if (isPlayingVoice) {
-      stopVoice();
-    } else {
-      stopVoice();
-      const textToRead = `Bước ${currentStepIndex + 1}. ${cleanStepText}`;
-      const utterance = new window.SpeechSynthesisUtterance(textToRead);
-      utterance.lang = 'vi-VN';
-      utterance.rate = Number(speed);
-      utterance.pitch = Number(pitch);
-      utterance.volume = Number(volume) / 100;
+    stopVoice();
+    setIsAudioLoading(true);
 
-      const matchedVoice = getSelectedVoice();
-      if (matchedVoice) {
-        utterance.voice = matchedVoice;
+    const textToRead = `Bước ${currentStepIndex + 1}. ${cleanStepText}`;
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: textToRead,
+          voice: selectedVoiceEngine,
+          rate: Number(speed),
+          pitch: Number(pitch),
+          volume: Number(volume)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`TTS server error: ${response.status}`);
       }
 
-      utterance.onend = () => setIsPlayingVoice(false);
-      utterance.onerror = () => setIsPlayingVoice(false);
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      activeAudioUrlRef.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      audio.volume = Math.max(0, Math.min(1, Number(volume) / 100));
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        stopVoice();
+      };
+
+      audio.onerror = () => {
+        stopVoice();
+      };
+
+      await audio.play();
       setIsPlayingVoice(true);
-      window.speechSynthesis.speak(utterance);
+      setIsAudioLoading(false);
+    } catch (err) {
+      console.error('Lỗi khi gọi Microsoft Edge TTS backend:', err);
+      stopVoice();
     }
   };
 
@@ -196,18 +187,30 @@ export default function CookModeModal({
             </div>
           )}
 
-          {/* Speech Synthesis Voice Button */}
+          {/* Real Microsoft Edge TTS Voice Button */}
           <button
             type="button"
             onClick={handleToggleVoice}
-            aria-label={isPlayingVoice ? 'Dừng đọc hướng dẫn' : 'Đọc hướng dẫn giọng nói'}
+            disabled={isAudioLoading}
+            aria-label={
+              isAudioLoading
+                ? 'Đang tải âm thanh'
+                : isPlayingVoice
+                ? 'Dừng đọc hướng dẫn'
+                : 'Đọc hướng dẫn giọng nói'
+            }
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs active:scale-95 ${
               isPlayingVoice
                 ? 'bg-rose-500 text-white hover:bg-rose-600'
                 : 'bg-brand-500 text-white hover:bg-brand-600'
             }`}
           >
-            {isPlayingVoice ? (
+            {isAudioLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang tải giọng đọc...</span>
+              </>
+            ) : isPlayingVoice ? (
               <>
                 <VolumeX className="w-4 h-4 animate-pulse" />
                 <span>Dừng đọc</span>
@@ -287,10 +290,7 @@ export default function CookModeModal({
                   Hoài My (Nữ nhẹ nhàng - Microsoft Edge TTS)
                 </option>
                 <option value="vi-VN-NamMinhNeural">
-                  Nam Minh (Nam truyền cảm - Microsoft Edge TTS)
-                </option>
-                <option value="system-default">
-                  Mặc định hệ thống thiết bị (vi-VN)
+                  Nam Minh (Nam ấm áp - Microsoft Edge TTS)
                 </option>
               </select>
             </div>

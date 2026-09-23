@@ -4,7 +4,7 @@ module.exports = {
   projects: [
     {
       displayName: 'backend',
-      testMatch: ['<rootDir>/tests/recipe.test.js'],
+      testMatch: ['<rootDir>/tests/recipe.test.js', '<rootDir>/tests/tts.test.js'],
       testEnvironment: 'node'
     },
     {

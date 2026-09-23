@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const recipeRoutes = require('./routes/recipeRoutes');
+const ttsRoutes = require('./routes/ttsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -16,6 +17,7 @@ app.use(express.json());
 
 // API Routes
 app.use('/api', recipeRoutes);
+app.use('/api', ttsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

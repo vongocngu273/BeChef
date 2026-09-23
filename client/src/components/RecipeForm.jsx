@@ -151,7 +151,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-brand-100 space-y-6"
+      className="backdrop-blur-2xl bg-white/80 border border-white/70 shadow-[0_20px_50px_rgba(0,0,0,0.06)] rounded-3xl p-6 sm:p-8 space-y-6 transition-all"
     >
       {/* Mascot Hero Banner */}
       <HeroBanner />
@@ -227,7 +227,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
           <UtensilsCrossed className="w-5 h-5 text-brand-500" />
           <span>Phương pháp ăn dặm:</span>
         </label>
-        <div className="flex flex-wrap sm:flex-nowrap gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phương pháp ăn dặm">
+        <div className="flex overflow-x-auto no-scrollbar snap-x gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phương pháp ăn dặm">
           {FEEDING_METHODS.map((method) => {
             const isSelected = feedingMethod === method.id;
             return (
@@ -236,7 +236,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => setFeedingMethod(method.id)}
                 aria-pressed={isSelected}
-                className={`flex-1 min-w-[120px] min-h-[44px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex-1 min-w-[120px] min-h-[44px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap snap-start ${
                   isSelected
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'
@@ -256,7 +256,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
           <Sun className="w-5 h-5 text-amber-500" />
           <span>Phân loại bữa ăn:</span>
         </label>
-        <div className="flex gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phân loại bữa ăn">
+        <div className="flex overflow-x-auto no-scrollbar snap-x gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phân loại bữa ăn">
           {MEAL_TYPES.map((type) => {
             const isSelected = mealType === type.id;
             return (
@@ -265,7 +265,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => setMealType(type.id)}
                 aria-pressed={isSelected}
-                className={`flex-1 min-h-[44px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex-1 min-h-[44px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap snap-start ${
                   isSelected
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'

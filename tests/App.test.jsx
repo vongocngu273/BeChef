@@ -106,6 +106,40 @@ describe('Frontend UI: App Component', () => {
     jest.clearAllMocks();
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+
+    window.URL.createObjectURL = jest.fn(() => 'blob:mock-audio-url');
+    window.URL.revokeObjectURL = jest.fn();
+
+    class MockAudio {
+      constructor(src) {
+        this.src = src;
+        this.volume = 1;
+        this.currentTime = 0;
+        this.onplay = null;
+        this.onended = null;
+        this.onerror = null;
+      }
+      play() {
+        if (this.onplay) this.onplay();
+        return Promise.resolve();
+      }
+      pause() {
+        // Just pause, do not trigger onended
+      }
+    }
+    global.Audio = MockAudio;
+    window.Audio = MockAudio;
+
+    global.fetch = jest.fn().mockImplementation((url, options) => {
+      if (url === '/api/tts') {
+        return Promise.resolve({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['mock mp3 data'], { type: 'audio/mpeg' }))
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
     window.speechSynthesis = {
       speak: jest.fn(),
       cancel: jest.fn(),
@@ -490,7 +524,14 @@ describe('Frontend UI: App Component', () => {
     // Click "Đọc bước này"
     const voiceButton = screen.getByRole('button', { name: /Đọc hướng dẫn giọng nói/i });
     fireEvent.click(voiceButton);
-    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/tts',
+        expect.objectContaining({
+          method: 'POST'
+        })
+      );
+    });
 
     // Navigate to next step
     const nextButton = screen.getByRole('button', { name: /Bước tiếp theo/i });
@@ -683,8 +724,15 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(voiceButton);
 
     // Assert speech synthesis called and audio wave animation appears
-    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('audio-wave-animation')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/tts',
+        expect.objectContaining({
+          method: 'POST'
+        })
+      );
+      expect(screen.getByTestId('audio-wave-animation')).toBeInTheDocument();
+    });
 
     // Open Audio Settings popover panel
     fireEvent.click(audioSettingsBtn);
@@ -697,11 +745,10 @@ describe('Frontend UI: App Component', () => {
     const voiceSelect = screen.getByLabelText('Chọn giọng đọc');
     expect(voiceSelect).toBeInTheDocument();
     expect(within(voiceSelect).getByText(/Hoài My \(Nữ nhẹ nhàng - Microsoft Edge TTS\)/i)).toBeInTheDocument();
-    expect(within(voiceSelect).getByText(/Nam Minh \(Nam truyền cảm - Microsoft Edge TTS\)/i)).toBeInTheDocument();
+    expect(within(voiceSelect).getByText(/Nam Minh \(Nam (ấm áp|truyền cảm) - Microsoft Edge TTS\)/i)).toBeInTheDocument();
 
     // Change voice engine - should stop playing speech
     fireEvent.change(voiceSelect, { target: { value: 'vi-VN-NamMinhNeural' } });
-    expect(window.speechSynthesis.cancel).toHaveBeenCalled();
     expect(screen.queryByTestId('audio-wave-animation')).not.toBeInTheDocument();
 
     // Test Speed slider
