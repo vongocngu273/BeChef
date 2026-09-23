@@ -1,5 +1,8 @@
 # 🥣 BeChef - AI Recipe & Meal Planner Cho Bé (6-24 Tháng)
 
+> **Tác giả:** **Ngự Võ**  
+> **Phiên bản:** v1.0.0 | Tiêu chuẩn Y Khoa Nhi (6-24 Tháng)
+
 Ứng dụng web thông minh giúp bố mẹ lên thực đơn ăn dặm cho bé chỉ trong vài giây dựa trên nguyên liệu sẵn có trong tủ lạnh và **tuân thủ nghiêm ngặt quy tắc dinh dưỡng & an toàn y khoa nhi**.
 
 Được hỗ trợ bởi **Google Gemini API** (`gemini-3.8-flash`), **Node.js (Express)** và **React (Vite) + Tailwind CSS**.

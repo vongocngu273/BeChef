@@ -169,8 +169,11 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-orange-100 bg-white/60 py-6 mt-12 text-center text-xs text-slate-600">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 BeChef. Ứng dụng gợi ý thực đơn ăn dặm bằng Google Gemini API.</p>
-          <div className="flex items-center gap-1 text-slate-600">
+          <div className="text-center sm:text-left">
+            <p>© 2026 BeChef • Tác giả: <strong className="text-slate-800 font-semibold">Ngự Võ</strong></p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Gợi ý thực đơn ăn dặm chuẩn dinh dưỡng y khoa nhi</p>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-600">
             <span>Đồng hành cùng sức khỏe bé yêu</span>
             <HeartHandshake className="w-4 h-4 text-rose-500 inline" />
           </div>

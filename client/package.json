@@ -2,6 +2,7 @@
   "name": "bechef-client",
   "private": true,
   "version": "1.0.0",
+  "author": "Ngự Võ",
   "type": "module",
   "scripts": {
     "dev": "vite",

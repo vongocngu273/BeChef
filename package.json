@@ -12,8 +12,13 @@
     "test:runner": "node scripts/run-tests-and-heal.js",
     "test:coverage": "jest --coverage"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "baby-food",
+    "meal-planner",
+    "pediatric-nutrition",
+    "gemini-ai"
+  ],
+  "author": "Ngự Võ",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
