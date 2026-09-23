@@ -1,0 +1,262 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import App from '../client/src/App';
+import * as recipeApi from '../client/src/api/recipeApi';
+
+const mockRecipesData = {
+  recipes: [
+    {
+      dish_name: 'Cháo gà bí đỏ thơm ngon',
+      suitable_age_range: '7 tháng',
+      feeding_method: 'Truyền thống',
+      texture_description: 'Độ thô 1:7 mịn nhuyễn có lợn cợn nhẹ',
+      yield_portion: '1 chén 150ml',
+      prep_time_minutes: 10,
+      cook_time_minutes: 20,
+      difficulty: 'Dễ',
+      available_ingredients_used: [
+        { name: 'Thịt gà', amount: '30g' },
+        { name: 'Bí đỏ', amount: '30g' }
+      ],
+      missing_ingredients_needed: [
+        { name: 'Gạo tẻ', amount: '30g' },
+        { name: 'Dầu óc chó', amount: '5ml' }
+      ],
+      cooking_steps: [
+        'Bước 1: Nấu cháo nhừ.',
+        'Bước 2: Xay nhuyễn thịt gà và bí đỏ đã hấp chín.',
+        'Bước 3: Trộn đều và đun sôi lại.'
+      ],
+      pediatrician_tip: 'Tuyệt đối không nêm mắm muối cho bé dưới 1 tuổi.'
+    },
+    {
+      dish_name: 'Súp bí đỏ dashi ngọt lành',
+      suitable_age_range: '7 tháng',
+      feeding_method: 'Kiểu Nhật',
+      texture_description: 'Súp sánh mịn vừa phải',
+      yield_portion: '1 chén nhỏ 100ml',
+      prep_time_minutes: 5,
+      cook_time_minutes: 15,
+      difficulty: 'Dễ',
+      available_ingredients_used: [{ name: 'Bí đỏ', amount: '40g' }],
+      missing_ingredients_needed: [{ name: 'Nước dashi', amount: '80ml' }],
+      cooking_steps: ['Bước 1: Hấp bí đỏ.', 'Bước 2: Rây mịn và nấu cùng dashi.'],
+      pediatrician_tip: 'Nhiệt độ thức ăn lý tưởng khoảng 37-40 độ C.'
+    },
+    {
+      dish_name: 'Thanh gà hấp mềm BLW',
+      suitable_age_range: '7 tháng',
+      feeding_method: 'BLW',
+      texture_description: 'Thanh mềm dễ cầm nắm',
+      yield_portion: '3 thanh',
+      prep_time_minutes: 15,
+      cook_time_minutes: 15,
+      difficulty: 'Trung bình',
+      available_ingredients_used: [{ name: 'Thịt gà', amount: '50g' }],
+      missing_ingredients_needed: [],
+      cooking_steps: ['Bước 1: Nặn thịt dạng thanh dài.', 'Bước 2: Hấp chín tới.'],
+      pediatrician_tip: 'Tránh các hạt cứng hoặc thực phẩm trơn tròn nguyên quả.'
+    }
+  ]
+};
+
+describe('Frontend UI: App Component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('renders form controls with Vietnamese UI labels', () => {
+    render(<App />);
+
+    expect(screen.getAllByText(/BeChef/i)[0]).toBeInTheDocument();
+    expect(screen.getByText(/Độ tuổi của bé \(tháng\):/i)).toBeInTheDocument();
+    expect(screen.getByText(/Phương pháp ăn dặm:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Truyền thống/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kiểu Nhật/i)).toBeInTheDocument();
+    expect(screen.getByText(/BLW/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nguyên liệu mẹ sẵn có trong tủ lạnh:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gợi ý món ăn ngay/i)).toBeInTheDocument();
+  });
+
+  test('allows changing age, feeding method, and custom ingredients', () => {
+    render(<App />);
+
+    const ageInput = screen.getByLabelText(/Độ tuổi của bé/i);
+    fireEvent.change(ageInput, { target: { value: '9' } });
+    expect(ageInput.value).toBe('9');
+
+    // Switch method to BLW
+    const blwButton = screen.getByText('BLW (Tự chỉ huy)');
+    fireEvent.click(blwButton);
+
+    // Add custom ingredient
+    const customInput = screen.getByPlaceholderText(/Ví dụ: Khoai lang/i);
+    const addButton = screen.getByRole('button', { name: /Thêm/i });
+
+    fireEvent.change(customInput, { target: { value: 'Khoai tây' } });
+    fireEvent.click(addButton);
+
+    expect(screen.getByText('Khoai tây')).toBeInTheDocument();
+  });
+
+  test('submits form, shows loading state, and renders 3 recipe flashcards', async () => {
+    const generateSpy = jest
+      .spyOn(recipeApi, 'generateRecipes')
+      .mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    // Assert API called
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+
+    // Assert recipes rendered
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
+      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+    });
+
+    // Assert 2-column ingredients split
+    expect(screen.getAllByText('Nguyên liệu sẵn có').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Cần mua thêm').length).toBeGreaterThan(0);
+
+    // Assert pediatrician tip
+    expect(
+      screen.getByText(/Tuyệt đối không nêm mắm muối cho bé dưới 1 tuổi/i)
+    ).toBeInTheDocument();
+  });
+
+  test('copies shopping list to clipboard when clicking "Sao chép danh sách đi chợ"', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+
+    const copyButtons = screen.getAllByLabelText('Sao chép danh sách đi chợ');
+    expect(copyButtons.length).toBe(3);
+
+    fireEvent.click(copyButtons[0]);
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining('Danh sách đi chợ cho món "Cháo gà bí đỏ thơm ngon"')
+      );
+      expect(screen.getByText('Đã sao chép danh sách!')).toBeInTheDocument();
+    });
+  });
+
+  test('handles API error and displays ErrorAlert boundary with retry', async () => {
+    const errorSpy = jest
+      .spyOn(recipeApi, 'generateRecipes')
+      .mockRejectedValueOnce(new Error('Hệ thống xử lý quá thời gian chờ (timeout).'));
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Hệ thống xử lý quá thời gian chờ/i)
+      ).toBeInTheDocument();
+    });
+
+    // Test retry
+    errorSpy.mockResolvedValueOnce(mockRecipesData);
+    const retryButton = screen.getByRole('button', { name: /Thử lại/i });
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+  });
+
+  test('toggles cooking checklist steps with strikethrough, dimming, and check icon', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+
+    // Step 1 for dish 1: "Nấu cháo nhừ."
+    const step1 = screen.getByText('Nấu cháo nhừ.');
+    const stepItem = step1.closest('li');
+
+    // Initially not completed
+    expect(stepItem).not.toHaveClass('line-through');
+    expect(stepItem).not.toHaveClass('opacity-50');
+
+    // Click to complete
+    fireEvent.click(stepItem);
+
+    // Completed: has line-through, opacity-50, and text-slate-400
+    expect(stepItem).toHaveClass('line-through');
+    expect(stepItem).toHaveClass('opacity-50');
+    expect(stepItem).toHaveClass('text-slate-400');
+    expect(step1).toHaveClass('line-through');
+
+    // Click again to un-complete
+    fireEvent.click(stepItem);
+    expect(stepItem).not.toHaveClass('line-through');
+    expect(stepItem).not.toHaveClass('opacity-50');
+  });
+
+  test('opens Focus/Zoom mode modal, interacts with checklist, and returns to 3-card grid', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+    });
+
+    // Click Zoom button on card 0
+    const zoomButtons = screen.getAllByLabelText('Xem chi tiết / Phóng to');
+    expect(zoomButtons.length).toBe(3);
+    fireEvent.click(zoomButtons[0]);
+
+    // Modal dialog is opened
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Chế độ Nấu Bếp (Tập trung)')).toBeInTheDocument();
+
+    // Check step 1 inside modal
+    const modalStep1 = screen.getAllByText('Nấu cháo nhừ.')[0];
+    const modalStepItem = modalStep1.closest('li');
+    fireEvent.click(modalStepItem);
+
+    expect(modalStepItem).toHaveClass('line-through');
+    expect(modalStepItem).toHaveClass('opacity-50');
+
+    // Close modal via "Thu nhỏ / Trở lại 3 món"
+    const minimizeBtn = screen.getAllByLabelText('Thu nhỏ / Trở lại 3 món')[0];
+    fireEvent.click(minimizeBtn);
+
+    // Modal closed
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // In 3-card grid, step 1 is still preserved as completed!
+    const gridStep1 = screen.getByText('Nấu cháo nhừ.');
+    const gridStepItem = gridStep1.closest('li');
+    expect(gridStepItem).toHaveClass('line-through');
+    expect(gridStepItem).toHaveClass('opacity-50');
+  });
+});
+
