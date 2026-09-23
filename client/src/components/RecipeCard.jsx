@@ -15,6 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import RecipeExportPoster from './RecipeExportPoster';
 
 export default function RecipeCard({
   recipe,
@@ -32,6 +33,7 @@ export default function RecipeCard({
   const [isExporting, setIsExporting] = useState(false);
   const [localCompletedSteps, setLocalCompletedSteps] = useState([]);
   const cardRef = useRef(null);
+  const posterRef = useRef(null);
 
   if (!recipe) return null;
 
@@ -84,10 +86,10 @@ export default function RecipeCard({
   };
 
   const handleExportImage = async () => {
-    if (!cardRef.current) return;
+    if (!posterRef.current) return;
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(cardRef.current, {
+      const dataUrl = await toPng(posterRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff'
       });
@@ -532,6 +534,19 @@ export default function RecipeCard({
             )}
           </button>
         </div>
+      </div>
+
+      {/* Off-screen pristine keepsake poster for html-to-image export */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px',
+          width: '600px'
+        }}
+        aria-hidden="true"
+      >
+        <RecipeExportPoster ref={posterRef} recipe={recipe} />
       </div>
     </div>
   );

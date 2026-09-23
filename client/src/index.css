@@ -3,6 +3,35 @@
 @tailwind utilities;
 
 @layer base {
+  :root,
+  [data-theme="mam-xanh"] {
+    --color-primary: #36BA34;
+    --color-primary-hover: #2ea12c;
+    --color-primary-light: #E8F8E8;
+    --color-primary-border: #A7F3D0;
+  }
+
+  [data-theme="bo-sua"] {
+    --color-primary: #D97706;
+    --color-primary-hover: #b45309;
+    --color-primary-light: #FEF9C3;
+    --color-primary-border: #FDE68A;
+  }
+
+  [data-theme="ca-rot"] {
+    --color-primary: #EA580C;
+    --color-primary-hover: #c2410c;
+    --color-primary-light: #FFEDD5;
+    --color-primary-border: #FED7AA;
+  }
+
+  [data-theme="be-may"] {
+    --color-primary: #0284C7;
+    --color-primary-hover: #0369a1;
+    --color-primary-light: #E0F2FE;
+    --color-primary-border: #BAE6FD;
+  }
+
   body {
     @apply antialiased;
   }

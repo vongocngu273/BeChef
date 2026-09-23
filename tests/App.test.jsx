@@ -105,6 +105,7 @@ describe('Frontend UI: App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
     window.speechSynthesis = {
       speak: jest.fn(),
       cancel: jest.fn(),
@@ -117,7 +118,7 @@ describe('Frontend UI: App Component', () => {
     }));
   });
 
-  test('renders form controls with Vietnamese UI labels', () => {
+  test('renders form controls with Vietnamese UI labels, segmented tabs, and ingredient categories', () => {
     render(<App />);
 
     expect(screen.getAllByText(/BeChef/i)[0]).toBeInTheDocument();
@@ -126,7 +127,16 @@ describe('Frontend UI: App Component', () => {
     expect(screen.getByText(/Truyền thống/i)).toBeInTheDocument();
     expect(screen.getByText(/Kiểu Nhật/i)).toBeInTheDocument();
     expect(screen.getByText(/BLW/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bữa chính/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bữa phụ/i)).toBeInTheDocument();
     expect(screen.getByText(/Nguyên liệu mẹ sẵn có trong tủ lạnh:/i)).toBeInTheDocument();
+
+    // Verify Tab bar categories are rendered
+    expect(screen.getByText('Đạm')).toBeInTheDocument();
+    expect(screen.getByText('Rau củ')).toBeInTheDocument();
+    expect(screen.getByText('Trái cây & Tinh bột')).toBeInTheDocument();
+    expect(screen.getByText('Dầu & Sữa')).toBeInTheDocument();
+
     expect(screen.getByText(/Gợi ý món ăn ngay/i)).toBeInTheDocument();
   });
 
@@ -137,7 +147,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.change(ageInput, { target: { value: '9' } });
     expect(ageInput.value).toBe('9');
 
-    // Switch method to BLW
+    // Switch method to BLW pill toggle
     const blwButton = screen.getByText('BLW (Tự chỉ huy)');
     fireEvent.click(blwButton);
 
@@ -163,6 +173,37 @@ describe('Frontend UI: App Component', () => {
     // Assert capitalized chip is displayed and lowercase is not
     expect(screen.getByText('Khoai lang')).toBeInTheDocument();
     expect(screen.queryByText('khoai lang')).not.toBeInTheDocument();
+  });
+
+  test('Ingredient Categorized Tabs: shows counter badges, toggles active tab, and filters visible chips', () => {
+    render(<App />);
+
+    // Initially active tab is protein ('Đạm'). Default ingredients: Thịt gà (protein), Bí đỏ (veggie), Dầu óc chó (oil_milk)
+    // Protein tab should show badge (1)
+    const proteinTab = screen.getByRole('tab', { name: /Đạm/i });
+    expect(proteinTab).toHaveTextContent('(1)');
+
+    // Veggie tab should show badge (1)
+    const veggieTab = screen.getByRole('tab', { name: /Rau củ/i });
+    expect(veggieTab).toHaveTextContent('(1)');
+
+    // In protein tab, "Thịt gà" chip is visible, but "Bí đỏ" chip is NOT in the chips list
+    expect(screen.getByText(/Thịt gà/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Bí đỏ/i)).not.toBeInTheDocument();
+
+    // Switch to Veggie tab
+    fireEvent.click(veggieTab);
+
+    // Now "Bí đỏ" is visible, "Thịt gà" is NOT visible
+    expect(screen.getByText(/Bí đỏ/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Thịt gà/i)).not.toBeInTheDocument();
+
+    // Select "Cà rốt" in veggie tab
+    const carrotChip = screen.getByText(/Cà rốt/i);
+    fireEvent.click(carrotChip);
+
+    // Veggie counter badge should update to (2)
+    expect(veggieTab).toHaveTextContent('(2)');
   });
 
   test('renders SafetyAnalysisBox with overall verdict, status badges, and pediatric medical notes', async () => {
@@ -207,7 +248,7 @@ describe('Frontend UI: App Component', () => {
     ).toBeInTheDocument();
   });
 
-  test('submits form, shows loading state, and renders 3 recipe flashcards', async () => {
+  test('submits form, shows loading state, renders 3 recipe flashcards and off-screen export posters', async () => {
     const generateSpy = jest
       .spyOn(recipeApi, 'generateRecipes')
       .mockResolvedValueOnce(mockRecipesData);
@@ -220,11 +261,11 @@ describe('Frontend UI: App Component', () => {
     // Assert API called
     expect(generateSpy).toHaveBeenCalledTimes(1);
 
-    // Assert recipes rendered
+    // Assert recipes rendered in cards
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
-      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
-      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Súp bí đỏ dashi ngọt lành').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Thanh gà hấp mềm BLW').length).toBeGreaterThan(0);
     });
 
     // Assert 2-column ingredients split
@@ -233,8 +274,17 @@ describe('Frontend UI: App Component', () => {
 
     // Assert pediatrician tip
     expect(
-      screen.getByText(/Tuyệt đối không nêm mắm muối cho bé dưới 1 tuổi/i)
-    ).toBeInTheDocument();
+      screen.getAllByText(/Tuyệt đối không nêm mắm muối cho bé dưới 1 tuổi/i).length
+    ).toBeGreaterThan(0);
+
+    // Assert 3 pristine keepsake posters exist off-screen without interactive buttons
+    const posters = screen.getAllByTestId('recipe-export-poster');
+    expect(posters.length).toBe(3);
+    posters.forEach((poster) => {
+      expect(within(poster).queryByRole('button')).not.toBeInTheDocument();
+      expect(within(poster).getByText(/Thực đơn dinh dưỡng BeChef - Chuẩn Y Khoa Nhi/i)).toBeInTheDocument();
+      expect(within(poster).getByText(/Ngự Võ/i)).toBeInTheDocument();
+    });
   });
 
   test('copies shopping list to clipboard when clicking "Sao chép danh sách đi chợ"', async () => {
@@ -246,7 +296,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
 
     const copyButtons = screen.getAllByLabelText('Sao chép danh sách đi chợ');
@@ -285,7 +335,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(retryButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
   });
 
@@ -298,12 +348,11 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
 
-    // Step 1 for dish 1: "Nấu cháo nhừ."
-    const step1 = screen.getByText('Nấu cháo nhừ.');
-    const stepItem = step1.closest('li');
+    // Step item 0 on card 0
+    const stepItem = screen.getAllByTestId('step-item-0')[0];
 
     // Initially not completed
     expect(stepItem).not.toHaveClass('line-through');
@@ -316,7 +365,6 @@ describe('Frontend UI: App Component', () => {
     expect(stepItem).toHaveClass('line-through');
     expect(stepItem).toHaveClass('opacity-50');
     expect(stepItem).toHaveClass('text-slate-400');
-    expect(step1).toHaveClass('line-through');
 
     // Click again to un-complete
     fireEvent.click(stepItem);
@@ -333,7 +381,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
 
     // Click Zoom button on card 0
@@ -342,12 +390,12 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(zoomButtons[0]);
 
     // Modal dialog is opened
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const modalDialog = screen.getByRole('dialog');
+    expect(modalDialog).toBeInTheDocument();
     expect(screen.getByText('Chế độ Nấu Bếp (Tập trung)')).toBeInTheDocument();
 
     // Check step 1 inside modal
-    const modalStep1 = screen.getAllByText('Nấu cháo nhừ.')[0];
-    const modalStepItem = modalStep1.closest('li');
+    const modalStepItem = within(modalDialog).getByTestId('step-item-0');
     fireEvent.click(modalStepItem);
 
     expect(modalStepItem).toHaveClass('line-through');
@@ -360,18 +408,20 @@ describe('Frontend UI: App Component', () => {
     // Modal closed
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    // In 3-card grid, step 1 is still preserved as completed!
-    const gridStep1 = screen.getByText('Nấu cháo nhừ.');
-    const gridStepItem = gridStep1.closest('li');
+    // In 3-card grid, step 0 is still preserved as completed!
+    const gridStepItem = screen.getAllByTestId('step-item-0')[0];
     expect(gridStepItem).toHaveClass('line-through');
     expect(gridStepItem).toHaveClass('opacity-50');
   });
 
-  test('ThemeSwitcher: switches theme, updates localStorage, and applies new theme styling', () => {
+  test('ThemeSwitcher: switches theme, updates localStorage, and applies data-theme attribute on root and html', () => {
     render(<App />);
 
     const themeSwitcher = screen.getByTestId('theme-switcher');
     expect(themeSwitcher).toBeInTheDocument();
+
+    // Check initial data-theme
+    expect(document.documentElement.getAttribute('data-theme')).toBe('mam-xanh');
 
     const toggleButton = screen.getByLabelText('Chọn chủ đề giao diện');
     expect(toggleButton).toBeInTheDocument();
@@ -385,6 +435,7 @@ describe('Frontend UI: App Component', () => {
 
     // Assert localStorage updated
     expect(localStorage.getItem('bechef-theme')).toBe('ca-rot');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('ca-rot');
     expect(screen.getByText('Cà Rốt')).toBeInTheDocument();
   });
 
@@ -395,7 +446,7 @@ describe('Frontend UI: App Component', () => {
 
     render(<App />);
 
-    // Click "Bữa phụ (Xế chiều/Tráng miệng)"
+    // Click "Bữa phụ" pill toggle
     const snackOption = screen.getByText(/Bữa phụ/i);
     fireEvent.click(snackOption);
 
@@ -421,7 +472,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
 
     // Click "Bắt đầu nấu" on first recipe card
@@ -483,9 +534,9 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
-      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
-      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Súp bí đỏ dashi ngọt lành').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Thanh gà hấp mềm BLW').length).toBeGreaterThan(0);
     });
 
     // Click "Đổi món này" on card 0
@@ -501,14 +552,14 @@ describe('Frontend UI: App Component', () => {
 
     // After replacement, card 0 has new dish, cards 1 and 2 are preserved
     await waitFor(() => {
-      expect(screen.getByText('Cháo bắp ngọt thịt heo mềm tan')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo bắp ngọt thịt heo mềm tan').length).toBeGreaterThan(0);
       expect(screen.queryByText('Cháo gà bí đỏ thơm ngon')).not.toBeInTheDocument();
-      expect(screen.getByText('Súp bí đỏ dashi ngọt lành')).toBeInTheDocument();
-      expect(screen.getByText('Thanh gà hấp mềm BLW')).toBeInTheDocument();
+      expect(screen.getAllByText('Súp bí đỏ dashi ngọt lành').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Thanh gà hấp mềm BLW').length).toBeGreaterThan(0);
     });
   });
 
-  test('SaveAsImage: exports recipe card as PNG using html-to-image when clicking "Lưu ảnh công thức"', async () => {
+  test('SaveAsImage: exports pristine keepsake recipe poster as PNG using html-to-image without action buttons', async () => {
     jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
     const htmlToImage = require('html-to-image');
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -519,7 +570,7 @@ describe('Frontend UI: App Component', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cháo gà bí đỏ thơm ngon')).toBeInTheDocument();
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
     });
 
     const exportButtons = screen.getAllByRole('button', { name: /Lưu ảnh công thức/i });
@@ -531,8 +582,13 @@ describe('Frontend UI: App Component', () => {
       expect(htmlToImage.toPng).toHaveBeenCalled();
     });
 
+    // Verify toPng was called with the poster element
+    const passedElement = htmlToImage.toPng.mock.calls[0][0];
+    expect(passedElement).toHaveAttribute('data-testid', 'recipe-export-poster');
+    // Verify poster has watermark and no action buttons
+    expect(within(passedElement).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(passedElement).getByText(/Chuẩn Y Khoa Nhi • Tác giả:/i)).toBeInTheDocument();
+
     clickSpy.mockRestore();
   });
 });
-
-

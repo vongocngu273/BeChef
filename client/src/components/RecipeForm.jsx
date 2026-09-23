@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
-import { Sparkles, Plus, X, Baby, UtensilsCrossed, ShieldAlert, Sun, Coffee } from 'lucide-react';
+import { Sparkles, Plus, X, Baby, UtensilsCrossed, ShieldAlert, Sun } from 'lucide-react';
 
 const FEEDING_METHODS = [
   {
     id: 'Truyền thống',
     icon: '🥣',
-    label: 'Ăn dặm truyền thống',
-    desc: 'Cháo xay nhuyễn/nấu nhừ kết hợp rau củ thịt cá'
+    label: 'Ăn dặm truyền thống'
   },
   {
     id: 'Kiểu Nhật',
     icon: '🍱',
-    label: 'Ăn dặm kiểu Nhật',
-    desc: 'Ăn riêng từng món, tăng độ thô theo tuần chuẩn Nhật'
+    label: 'Ăn dặm kiểu Nhật'
   },
   {
     id: 'BLW',
     icon: '🥦',
-    label: 'BLW (Tự chỉ huy)',
-    desc: 'Bé tự bốc thức ăn mềm dạng thanh/miếng'
+    label: 'BLW (Tự chỉ huy)'
   }
 ];
 
@@ -26,19 +23,20 @@ const MEAL_TYPES = [
   {
     id: 'Bữa chính',
     icon: '☀️',
-    label: 'Bữa chính (Trưa/Tối)',
-    desc: 'Cân đối đủ 4 nhóm chất chính'
+    label: 'Bữa chính'
   },
   {
     id: 'Bữa phụ',
     icon: '🥞',
-    label: 'Bữa phụ (Xế chiều/Tráng miệng)',
-    desc: 'Thanh nhẹ, bánh hấp, sinh tố, súp tráng miệng'
+    label: 'Bữa phụ'
   }
 ];
 
 const INGREDIENT_CATEGORIES = {
   protein: {
+    id: 'protein',
+    name: 'Đạm',
+    icon: '🥩',
     title: 'Đạm (Thịt, cá, tôm, trứng, đậu)',
     items: [
       { name: 'Thịt gà', emoji: '🍗' },
@@ -51,6 +49,9 @@ const INGREDIENT_CATEGORIES = {
     ]
   },
   veggie: {
+    id: 'veggie',
+    name: 'Rau củ',
+    icon: '🥦',
     title: 'Rau củ & Quả',
     items: [
       { name: 'Bí đỏ', emoji: '🎃' },
@@ -65,6 +66,9 @@ const INGREDIENT_CATEGORIES = {
     ]
   },
   fruit_grain: {
+    id: 'fruit_grain',
+    name: 'Trái cây & Tinh bột',
+    icon: '🍎',
     title: 'Trái cây & Tinh bột',
     items: [
       { name: 'Chuối chín', emoji: '🍌' },
@@ -75,6 +79,9 @@ const INGREDIENT_CATEGORIES = {
     ]
   },
   oil_milk: {
+    id: 'oil_milk',
+    name: 'Dầu & Sữa',
+    icon: '🥑',
     title: 'Dầu ăn dặm & Sữa',
     items: [
       { name: 'Dầu óc chó', emoji: '🌰' },
@@ -90,6 +97,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
   const [ageMonths, setAgeMonths] = useState(7);
   const [feedingMethod, setFeedingMethod] = useState('Truyền thống');
   const [mealType, setMealType] = useState('Bữa chính');
+  const [activeCategory, setActiveCategory] = useState('protein');
   const [selectedIngredients, setSelectedIngredients] = useState([
     'Thịt gà',
     'Bí đỏ',
@@ -104,6 +112,12 @@ export default function RecipeForm({ onSubmit, isLoading }) {
     } else {
       setSelectedIngredients([...selectedIngredients, name]);
     }
+  };
+
+  const getSelectedCount = (catKey) => {
+    const category = INGREDIENT_CATEGORIES[catKey];
+    if (!category) return 0;
+    return category.items.filter((item) => selectedIngredients.includes(item.name)).length;
   };
 
   const handleAddCustom = (e) => {
@@ -185,7 +199,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
           aria-label="Thanh trượt chọn tháng tuổi của bé"
           value={ageMonths}
           onChange={(e) => setAgeMonths(Number(e.target.value))}
-          className="w-full h-2.5 bg-brand-100 rounded-lg appearance-none cursor-pointer accent-[#36BA34]"
+          className="w-full h-2.5 bg-brand-100 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
         />
 
         <div className="flex justify-between text-xs text-slate-600 mt-1.5 font-medium">
@@ -221,13 +235,13 @@ export default function RecipeForm({ onSubmit, isLoading }) {
         </div>
       </div>
 
-      {/* 2. Feeding Method Selector */}
+      {/* 2. Feeding Method Selector (Horizontal Segmented Tabs / Pill Toggles) */}
       <div>
         <label className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2 mb-2.5">
           <UtensilsCrossed className="w-5 h-5 text-brand-500" />
           <span>Phương pháp ăn dặm:</span>
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phương pháp ăn dặm">
           {FEEDING_METHODS.map((method) => {
             const isSelected = feedingMethod === method.id;
             return (
@@ -235,33 +249,28 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 key={method.id}
                 type="button"
                 onClick={() => setFeedingMethod(method.id)}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                aria-pressed={isSelected}
+                className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-500/20 shadow-xs'
-                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
+                    ? 'bg-brand-500 text-white shadow-xs'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                <div className="font-bold text-[15px] text-slate-800 mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <span>{method.icon}</span>
-                    <span>{method.label}</span>
-                  </span>
-                  {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#36BA34]"></span>}
-                </div>
-                <p className="text-xs sm:text-[13px] text-slate-500 leading-relaxed">{method.desc}</p>
+                <span>{method.icon}</span>
+                <span>{method.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 3. Meal Type Selector */}
+      {/* 3. Meal Type Selector (Horizontal Segmented Tabs / Pill Toggles: ☀️ Bữa chính | 🥞 Bữa phụ) */}
       <div>
         <label className="text-[15px] sm:text-base font-bold text-slate-800 flex items-center gap-2 mb-2.5">
           <Sun className="w-5 h-5 text-amber-500" />
           <span>Phân loại bữa ăn:</span>
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="group" aria-label="Phân loại bữa ăn">
           {MEAL_TYPES.map((type) => {
             const isSelected = mealType === type.id;
             return (
@@ -270,59 +279,84 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => setMealType(type.id)}
                 aria-pressed={isSelected}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-brand-500 bg-brand-50/70 ring-2 ring-brand-500/20 shadow-xs'
-                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/30'
+                    ? 'bg-brand-500 text-white shadow-xs'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                <div className="font-bold text-[15px] text-slate-800 mb-0.5 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <span className="text-lg">{type.icon}</span>
-                    <span>{type.label}</span>
-                  </span>
-                  {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-[#36BA34]"></span>}
-                </div>
-                <p className="text-xs text-slate-500 ml-7">{type.desc}</p>
+                <span className="text-base">{type.icon}</span>
+                <span>{type.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 4. Ingredient Multi-Select Categorized with Emojis */}
-      <div className="space-y-4">
+      {/* 4. Ingredient Categorized Tabs */}
+      <div className="space-y-3">
         <label className="text-[15px] sm:text-base font-bold text-slate-800 block">
           Nguyên liệu mẹ sẵn có trong tủ lạnh:
         </label>
 
-        {Object.entries(INGREDIENT_CATEGORIES).map(([catKey, category]) => (
-          <div key={catKey} className="space-y-2">
-            <span className="text-[13px] font-semibold text-slate-600 block">
-              {category.title}
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {category.items.map((ingr) => {
-                const isSelected = selectedIngredients.includes(ingr.name);
-                return (
-                  <button
-                    key={ingr.name}
-                    type="button"
-                    onClick={() => toggleIngredient(ingr.name)}
-                    className={`px-3 py-1.5 rounded-xl text-[14px] sm:text-[15px] font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-brand-500 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-brand-100 hover:text-brand-800'
+        {/* Tab Bar: [ 🥩 Đạm ] | [ 🥦 Rau củ ] | [ 🍎 Trái cây & Tinh bột ] | [ 🥑 Dầu & Sữa ] */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="tablist" aria-label="Nhóm nguyên liệu">
+          {Object.entries(INGREDIENT_CATEGORIES).map(([catKey, category]) => {
+            const isActive = activeCategory === catKey;
+            const count = getSelectedCount(catKey);
+            return (
+              <button
+                key={catKey}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveCategory(catKey)}
+                className={`py-2 px-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-brand-500 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                }`}
+              >
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+                {count > 0 && (
+                  <span
+                    className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive
+                        ? 'bg-white/30 text-white'
+                        : 'bg-brand-100 text-brand-700'
                     }`}
                   >
-                    <span>{ingr.emoji} {ingr.name}</span>
-                    {isSelected && <span className="text-xs leading-none font-bold">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                    ({count})
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Only show chips for currently active tab */}
+        <div className="p-3.5 bg-slate-50/60 rounded-2xl border border-slate-200/60 min-h-[90px] flex flex-wrap gap-2 items-center">
+          {INGREDIENT_CATEGORIES[activeCategory]?.items.map((ingr) => {
+            const isSelected = selectedIngredients.includes(ingr.name);
+            return (
+              <button
+                key={ingr.name}
+                type="button"
+                onClick={() => toggleIngredient(ingr.name)}
+                aria-pressed={isSelected}
+                className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-brand-500 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:border-brand-200 hover:bg-brand-50/40'
+                }`}
+              >
+                <span>{ingr.emoji} {ingr.name}</span>
+                {isSelected && <span className="text-xs leading-none font-bold">✓</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 5. Custom Ingredients Tag-input */}

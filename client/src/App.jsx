@@ -41,6 +41,10 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+  }, [currentTheme]);
+
   const handleToggleStep = (recipeIndex, stepIndex) => {
     setCompletedStepsMap((prev) => {
       const currentSteps = prev[recipeIndex] || [];
@@ -121,6 +125,7 @@ export default function App() {
 
   return (
     <div
+      data-theme={currentTheme}
       className="min-h-screen flex flex-col relative transition-colors duration-500 font-sans"
       style={{ backgroundColor: themeConfig.bg }}
     >
