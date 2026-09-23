@@ -15,8 +15,8 @@ const RecipeExportPoster = forwardRef(({ recipe }, ref) => {
       <div className="border-b border-brand-100 pb-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center text-2xl shadow-sm">
-              👶🍳
+            <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-sm shadow-brand-500/20">
+              <ChefHat className="w-7 h-7" />
             </div>
             <div>
               <div className="flex items-center gap-2">
