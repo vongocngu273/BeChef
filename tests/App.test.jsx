@@ -135,7 +135,7 @@ describe('Frontend UI: App Component', () => {
     expect(screen.getByText('Đạm')).toBeInTheDocument();
     expect(screen.getByText('Rau củ')).toBeInTheDocument();
     expect(screen.getByText('Trái cây & Tinh bột')).toBeInTheDocument();
-    expect(screen.getByText('Dầu & Sữa')).toBeInTheDocument();
+    expect(screen.getByText('Dầu ăn dặm & Sữa')).toBeInTheDocument();
 
     expect(screen.getByText(/Gợi ý món ăn ngay/i)).toBeInTheDocument();
   });
@@ -591,4 +591,138 @@ describe('Frontend UI: App Component', () => {
 
     clickSpy.mockRestore();
   });
+
+  test('GeminiBackground: renders 4 ambient aurora gradient mesh blobs synchronized with theme', () => {
+    render(<App />);
+
+    const bgContainer = screen.getByTestId('gemini-background');
+    expect(bgContainer).toBeInTheDocument();
+    expect(bgContainer).toHaveClass('fixed', 'inset-0', 'pointer-events-none', 'overflow-hidden', 'z-0');
+
+    const blob1 = screen.getByTestId('aurora-blob-1');
+    const blob2 = screen.getByTestId('aurora-blob-2');
+    const blob3 = screen.getByTestId('aurora-blob-3');
+    const blob4 = screen.getByTestId('aurora-blob-4');
+
+    expect(blob1).toBeInTheDocument();
+    expect(blob2).toBeInTheDocument();
+    expect(blob3).toBeInTheDocument();
+    expect(blob4).toBeInTheDocument();
+
+    // Verify initial theme colors (mam-xanh)
+    expect(blob1).toHaveStyle({ backgroundColor: '#36BA34' });
+    expect(blob2).toHaveStyle({ backgroundColor: '#84cc16' });
+    expect(blob3).toHaveStyle({ backgroundColor: '#34d399' });
+    expect(blob4).toHaveStyle({ backgroundColor: '#fef08a' });
+
+    // Switch theme to 'bo-sua'
+    const toggleButton = screen.getByLabelText('Chọn chủ đề giao diện');
+    fireEvent.click(toggleButton);
+    const milkOption = screen.getByRole('menuitem', { name: /Bơ Sữa Ngọt Ngào/i });
+    fireEvent.click(milkOption);
+
+    // Verify colors updated to bo-sua palette
+    expect(blob1).toHaveStyle({ backgroundColor: '#D97706' });
+    expect(blob2).toHaveStyle({ backgroundColor: '#fed7aa' });
+    expect(blob3).toHaveStyle({ backgroundColor: '#f59e0b' });
+    expect(blob4).toHaveStyle({ backgroundColor: '#fef08a' });
+  });
+
+  test('HeroBanner: renders Baby Chef crisp vector SVG mascot with cheerful smile, hat, spoon, and steaming pot', () => {
+    render(<App />);
+
+    const heroBanner = screen.getByTestId('hero-banner');
+    expect(heroBanner).toBeInTheDocument();
+
+    // Verify card styling
+    expect(heroBanner).toHaveClass('rounded-3xl', 'backdrop-blur-md', 'bg-white/75', 'border-white/60');
+
+    // Verify mascot vector SVG illustration
+    const svgIllustration = within(heroBanner).getByRole('img', { name: /Minh họa Đầu Bếp Nhí BeChef/i });
+    expect(svgIllustration).toBeInTheDocument();
+
+    // Verify title and subtitle
+    expect(
+      within(heroBanner).getByText('Cùng mẹ chuẩn bị bữa ăn dặm đầu đời tràn đầy dinh dưỡng & yêu thương')
+    ).toBeInTheDocument();
+    expect(
+      within(heroBanner).getByText(
+        'BeChef đồng hành thiết kế thực đơn khoa học, độ thô chuẩn lứa tuổi và an toàn tuyệt đối.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  test('CookModeModal: audio settings panel with Edge TTS voices, speed/pitch/volume sliders, and equalizer wave animation', async () => {
+    jest.spyOn(recipeApi, 'generateRecipes').mockResolvedValueOnce(mockRecipesData);
+
+    render(<App />);
+
+    const submitButton = screen.getByRole('button', { name: /Gợi ý món ăn ngay/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Cháo gà bí đỏ thơm ngon').length).toBeGreaterThan(0);
+    });
+
+    // Open Cook Mode
+    const cookModeButtons = screen.getAllByRole('button', { name: /Bắt đầu nấu/i });
+    fireEvent.click(cookModeButtons[0]);
+
+    const cookDialog = screen.getByRole('dialog', { name: /Chế độ nấu bếp rảnh tay/i });
+    expect(cookDialog).toBeInTheDocument();
+
+    // Audio settings button is present
+    const audioSettingsBtn = screen.getByRole('button', { name: /Cài đặt âm thanh/i });
+    expect(audioSettingsBtn).toBeInTheDocument();
+
+    // Audio wave animation is not visible initially
+    expect(screen.queryByTestId('audio-wave-animation')).not.toBeInTheDocument();
+
+    // Click "Đọc bước này"
+    const voiceButton = screen.getByRole('button', { name: /Đọc hướng dẫn giọng nói/i });
+    fireEvent.click(voiceButton);
+
+    // Assert speech synthesis called and audio wave animation appears
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('audio-wave-animation')).toBeInTheDocument();
+
+    // Open Audio Settings popover panel
+    fireEvent.click(audioSettingsBtn);
+
+    const settingsPanel = screen.getByTestId('audio-settings-panel');
+    expect(settingsPanel).toBeInTheDocument();
+    expect(within(settingsPanel).getByText(/Cài đặt giọng đọc \(Edge TTS\)/i)).toBeInTheDocument();
+
+    // Test Voice engine selection
+    const voiceSelect = screen.getByLabelText('Chọn giọng đọc');
+    expect(voiceSelect).toBeInTheDocument();
+    expect(within(voiceSelect).getByText(/Hoài My \(Nữ nhẹ nhàng - Microsoft Edge TTS\)/i)).toBeInTheDocument();
+    expect(within(voiceSelect).getByText(/Nam Minh \(Nam truyền cảm - Microsoft Edge TTS\)/i)).toBeInTheDocument();
+
+    // Change voice engine - should stop playing speech
+    fireEvent.change(voiceSelect, { target: { value: 'vi-VN-NamMinhNeural' } });
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled();
+    expect(screen.queryByTestId('audio-wave-animation')).not.toBeInTheDocument();
+
+    // Test Speed slider
+    const speedSlider = screen.getByLabelText('Tốc độ đọc');
+    fireEvent.change(speedSlider, { target: { value: '1.25' } });
+    expect(screen.getByText('1.25x')).toBeInTheDocument();
+
+    // Test Pitch slider
+    const pitchSlider = screen.getByLabelText('Cao độ giọng');
+    fireEvent.change(pitchSlider, { target: { value: '1.1' } });
+    expect(screen.getByText('1.10')).toBeInTheDocument();
+
+    // Test Volume slider
+    const volumeSlider = screen.getByLabelText('Âm lượng');
+    fireEvent.change(volumeSlider, { target: { value: '80' } });
+    expect(screen.getByText('80%')).toBeInTheDocument();
+
+    // Close settings panel
+    const closeSettingsBtn = screen.getByRole('button', { name: /Đóng bảng cài đặt âm thanh/i });
+    fireEvent.click(closeSettingsBtn);
+    expect(screen.queryByTestId('audio-settings-panel')).not.toBeInTheDocument();
+  });
 });
+

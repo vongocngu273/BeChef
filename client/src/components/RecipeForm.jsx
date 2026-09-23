@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Plus, X, Baby, UtensilsCrossed, ShieldAlert, Sun } from 'lucide-react';
+import HeroBanner from './HeroBanner';
 
 const FEEDING_METHODS = [
   {
@@ -23,12 +24,12 @@ const MEAL_TYPES = [
   {
     id: 'Bữa chính',
     icon: '☀️',
-    label: 'Bữa chính'
+    label: 'Bữa chính (Trưa/Tối)'
   },
   {
     id: 'Bữa phụ',
     icon: '🥞',
-    label: 'Bữa phụ'
+    label: 'Bữa phụ (Xế chiều/Tráng miệng)'
   }
 ];
 
@@ -80,7 +81,7 @@ const INGREDIENT_CATEGORIES = {
   },
   oil_milk: {
     id: 'oil_milk',
-    name: 'Dầu & Sữa',
+    name: 'Dầu ăn dặm & Sữa',
     icon: '🥑',
     title: 'Dầu ăn dặm & Sữa',
     items: [
@@ -153,22 +154,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
       className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-brand-100 space-y-6"
     >
       {/* Mascot Hero Banner */}
-      <div className="bg-gradient-to-r from-amber-50/80 via-brand-50/60 to-orange-50/80 border border-brand-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left shadow-xs">
-        <div className="relative shrink-0">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-brand-400 to-amber-300 flex items-center justify-center text-3xl shadow-sm border border-white">
-            👶🍳
-          </div>
-          <span className="absolute -bottom-1 -right-1 text-sm bg-white rounded-full p-0.5 shadow-xs">✨</span>
-        </div>
-        <div className="space-y-0.5">
-          <h3 className="font-extrabold text-slate-800 text-sm sm:text-base leading-snug">
-            Cùng mẹ chuẩn bị bữa ăn dặm đầu đời tràn đầy dinh dưỡng & yêu thương
-          </h3>
-          <p className="text-xs text-slate-600">
-            BeChef đồng hành thiết kế thực đơn khoa học, độ thô chuẩn lứa tuổi và an toàn tuyệt đối.
-          </p>
-        </div>
-      </div>
+      <HeroBanner />
 
       {/* 1. Month Selection: Slider & Input */}
       <div>
@@ -250,14 +236,14 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => setFeedingMethod(method.id)}
                 aria-pressed={isSelected}
-                className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 min-w-[120px] min-h-[44px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
                 <span>{method.icon}</span>
-                <span>{method.label}</span>
+                <span className="whitespace-nowrap">{method.label}</span>
               </button>
             );
           })}
@@ -279,14 +265,14 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => setMealType(type.id)}
                 aria-pressed={isSelected}
-                className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`flex-1 min-h-[44px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'text-slate-700 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
                 <span className="text-base">{type.icon}</span>
-                <span>{type.label}</span>
+                <span className="whitespace-nowrap">{type.label}</span>
               </button>
             );
           })}
@@ -299,8 +285,12 @@ export default function RecipeForm({ onSubmit, isLoading }) {
           Nguyên liệu mẹ sẵn có trong tủ lạnh:
         </label>
 
-        {/* Tab Bar: [ 🥩 Đạm ] | [ 🥦 Rau củ ] | [ 🍎 Trái cây & Tinh bột ] | [ 🥑 Dầu & Sữa ] */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60" role="tablist" aria-label="Nhóm nguyên liệu">
+        {/* Tab Bar: [ 🥩 Đạm ] | [ 🥦 Rau củ ] | [ 🍎 Trái cây & Tinh bột ] | [ 🥑 Dầu ăn dặm & Sữa ] */}
+        <div
+          className="flex sm:grid sm:grid-cols-4 overflow-x-auto no-scrollbar gap-1.5 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60"
+          role="tablist"
+          aria-label="Nhóm nguyên liệu"
+        >
           {Object.entries(INGREDIENT_CATEGORIES).map(([catKey, category]) => {
             const isActive = activeCategory === catKey;
             const count = getSelectedCount(catKey);
@@ -311,17 +301,17 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveCategory(catKey)}
-                className={`py-2 px-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`shrink-0 sm:shrink min-h-[44px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
                 <span>{category.icon}</span>
-                <span>{category.name}</span>
+                <span className="whitespace-nowrap">{category.name}</span>
                 {count > 0 && (
                   <span
-                    className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
+                    className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
                       isActive
                         ? 'bg-white/30 text-white'
                         : 'bg-brand-100 text-brand-700'
@@ -345,7 +335,7 @@ export default function RecipeForm({ onSubmit, isLoading }) {
                 type="button"
                 onClick={() => toggleIngredient(ingr.name)}
                 aria-pressed={isSelected}
-                className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-brand-500 text-white shadow-xs'
                     : 'bg-white text-slate-700 border border-slate-200 hover:border-brand-200 hover:bg-brand-50/40'

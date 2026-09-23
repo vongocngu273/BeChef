@@ -4,6 +4,7 @@ import RecipeCard from './components/RecipeCard';
 import RecipeFocusModal from './components/RecipeFocusModal';
 import CookModeModal from './components/CookModeModal';
 import ThemeSwitcher, { THEMES } from './components/ThemeSwitcher';
+import GeminiBackground from './components/GeminiBackground';
 import SkeletonCard from './components/SkeletonCard';
 import ErrorAlert from './components/ErrorAlert';
 import SafetyAnalysisBox from './components/SafetyAnalysisBox';
@@ -129,20 +130,8 @@ export default function App() {
       className="min-h-screen flex flex-col relative transition-colors duration-500 font-sans"
       style={{ backgroundColor: themeConfig.bg }}
     >
-      {/* Ambient Blobs & Subtle Background Pattern */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div
-          className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl transition-all duration-700 ${themeConfig.blob1}`}
-        />
-        <div
-          className={`absolute top-1/3 -right-32 w-96 h-96 rounded-full blur-3xl transition-all duration-700 ${themeConfig.blob2}`}
-        />
-        <div
-          className={`absolute -bottom-32 left-1/3 w-96 h-96 rounded-full blur-3xl transition-all duration-700 ${themeConfig.blob1}`}
-        />
-        {/* Subtle dot overlay */}
-        <div className="absolute inset-0 opacity-[0.035] bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
-      </div>
+      {/* Gemini-Style Ambient Aurora Background */}
+      <GeminiBackground currentTheme={currentTheme} />
 
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-brand-100 sticky top-0 z-30 transition-colors">
@@ -183,7 +172,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-8 z-10">
         {/* Hero Section */}
-        <section className="text-center max-w-2xl mx-auto space-y-2">
+        <section className="text-center max-w-3xl mx-auto space-y-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Hôm nay nấu gì cho bé yêu ăn dặm?
           </h2>
@@ -193,7 +182,7 @@ export default function App() {
         </section>
 
         {/* Form Section */}
-        <section className="max-w-2xl mx-auto">
+        <section className="max-w-4xl mx-auto">
           <RecipeForm onSubmit={handleGenerate} isLoading={loading} />
         </section>
 
